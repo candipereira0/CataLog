@@ -79,17 +79,17 @@ export function getSessionCookie(req: Request): string | null {
   return match ? match[1] : null;
 }
 
-export function requireAuth(req: Request): { userId: number; user: Record<string, unknown>; sessionId: string } | Response {
+export async function requireAuth(req: Request): Promise<{ userId: number; user: Record<string, unknown>; sessionId: string } | Response> {
   const sessionId = getSessionCookie(req);
   if (!sessionId) return json({ error: "Unauthorized" }, 401);
-  const user = getUserFromSession(sessionId);
+  const user = await getUserFromSession(sessionId);
   if (!user) {
     const resp = json({ error: "Unauthorized" }, 401);
     resp.headers.set("Set-Cookie", "session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0");
     return resp;
   }
   // Lightweight: update device last_seen on every authenticated call
-  updateDeviceLastSeen(sessionId);
+  await updateDeviceLastSeen(sessionId);
   return { userId: user.id as number, user, sessionId };
 }
 
@@ -107,7 +107,7 @@ export async function handleAuthRegister(req: Request): Promise<Response> {
   if (!email.includes("@")) return json({ error: "Invalid email address" }, 400);
 
   const db = getDb();
-  const existing = db.query("SELECT id FROM users WHERE email = ?").get(email);
+  const existing = await db.query("SELECT id FROM users WHERE email = ?").get(email);
   if (existing) return json({ error: "Email already registered" }, 409);
 
   const passwordHash = Bun.password.hashSync(password);
@@ -120,19 +120,19 @@ export async function handleAuthRegister(req: Request): Promise<Response> {
   // If handle is taken, append numbers
   let suffix = 0;
   let candidate = handle;
-  while (db.query("SELECT id FROM users WHERE handle = ?").get(candidate)) {
+  while (await db.query("SELECT id FROM users WHERE handle = ?").get(candidate)) {
     suffix++;
     candidate = handle + suffix;
   }
   handle = candidate;
 
-  const result = db.run(
+  const result = await db.run(
     "INSERT INTO users (email, password_hash, display_name, handle) VALUES (?, ?, ?, ?)",
     [email, passwordHash, displayName, handle]
   );
 
   const userId = Number(result.lastInsertRowid);
-  const sessionId = createSession(userId);
+  const sessionId = await createSession(userId);
 
   const user = { id: userId, email, display_name: displayName, handle, tier: "free" };
   const resp = json({ user }, 201);
@@ -146,7 +146,7 @@ export async function handleAuthLogin(req: Request): Promise<Response> {
   if (!email || !password) return json({ error: "Email and password are required" }, 400);
 
   const db = getDb();
-  const row = db.query(
+  const row = await db.query(
     "SELECT id, email, password_hash, display_name, handle, tier FROM users WHERE email = ?"
   ).get(email) as { id: number; email: string; password_hash: string; display_name: string; handle: string | null; tier: string } | undefined;
   if (!row) return json({ error: "Invalid email or password" }, 401);
@@ -154,27 +154,27 @@ export async function handleAuthLogin(req: Request): Promise<Response> {
   const valid = Bun.password.verifySync(password, row.password_hash);
   if (!valid) return json({ error: "Invalid email or password" }, 401);
 
-  const sessionId = createSession(row.id);
+  const sessionId = await createSession(row.id);
   const user = { id: row.id, email: row.email, display_name: row.display_name, handle: row.handle, tier: row.tier };
   const resp = json({ user });
   resp.headers.set("Set-Cookie", `session=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${60 * 60 * 24 * 7}`);
   return resp;
 }
 
-export function handleAuthLogout(req: Request): Response {
+export async function handleAuthLogout(req: Request): Promise<Response> {
   const sessionId = getSessionCookie(req);
   if (sessionId) {
-    deleteSession(sessionId);
+    await deleteSession(sessionId);
   }
   const resp = json({ ok: true });
   resp.headers.set("Set-Cookie", "session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0");
   return resp;
 }
 
-export function handleAuthMe(req: Request): Response {
+export async function handleAuthMe(req: Request): Promise<Response> {
   const sessionId = getSessionCookie(req);
   if (!sessionId) return json({ user: null });
-  const user = getUserFromSession(sessionId);
+  const user = await getUserFromSession(sessionId);
   if (!user) {
     const resp = json({ user: null });
     resp.headers.set("Set-Cookie", "session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0");
@@ -2148,7 +2148,7 @@ export async function handleRecordTip(req: Request): Promise<Response> {
   let fromUserId: number | null = null;
   const sessionId = getSessionCookie(req);
   if (sessionId) {
-    const user = getUserFromSession(sessionId);
+    const user = await getUserFromSession(sessionId);
     if (user) fromUserId = user.id as number;
   }
 
