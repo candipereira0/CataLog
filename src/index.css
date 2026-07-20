@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+/* ── Theme CSS Variable Defaults (overridden by ThemeProvider at runtime) ── */
+:root {
+  --color-accent: #7c3aed;
+  --color-accent-hover: #6d28d9;
+  --color-accent-20: rgba(124, 58, 237, 0.2);
+  --color-bg-primary: #030712;
+  --color-bg-secondary: #1f2937;
+  --color-bg-card: #111827;
+  --color-text-primary: #f3f4f6;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+  --color-border: #374151;
+  --color-border-hover: #4b5563;
+}
+
+/* ── Map Tailwind color tokens to CSS variables ── */
+/* Tailwind v4 resolves @theme tokens at build time; using var(--x) here means
+   .bg-gray-950 generates `background-color: var(--color-bg-primary)` etc. */
+@theme {
+  --color-gray-50: var(--color-text-primary);
+  --color-gray-100: var(--color-text-primary);
+  --color-gray-200: var(--color-text-primary);
+  --color-gray-300: var(--color-text-secondary);
+  --color-gray-400: var(--color-text-secondary);
+  --color-gray-500: var(--color-text-muted);
+  --color-gray-600: var(--color-text-muted);
+  --color-gray-700: var(--color-border);
+  --color-gray-800: var(--color-bg-secondary);
+  --color-gray-900: var(--color-bg-card);
+  --color-gray-950: var(--color-bg-primary);
+
+  /* Map accent colors — use CSS variables so themes override them */
+  --color-violet-400: var(--color-accent);
+  --color-violet-500: var(--color-accent-hover);
+  --color-violet-600: var(--color-accent);
+  --color-violet-700: var(--color-accent-hover);
+  --color-violet-800: var(--color-bg-secondary);
+  --color-violet-900: var(--color-bg-card);
+  --color-violet-950: var(--color-bg-primary);
+
+  /* Amber (used for lifetime badges) */
+  --color-amber-300: var(--color-accent);
+  --color-amber-400: var(--color-accent);
+  --color-amber-500: var(--color-accent-hover);
+  --color-amber-600: var(--color-accent);
+  --color-amber-700: var(--color-border);
+  --color-amber-900: var(--color-bg-card);
+  --color-amber-950: var(--color-bg-primary);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-gray-950 text-gray-100 antialiased;
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    margin: 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  #root {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Smooth theme transitions for all elements */
+  html[data-theme] * {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #374151;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #4b5563;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-gray-950 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-gray-800 px-4 py-2.5 text-sm font-semibold text-gray-200 transition-colors hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:ring-offset-2 focus:ring-offset-gray-950 border border-gray-700;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500;
+  }
+
+  .card {
+    @apply rounded-xl bg-gray-900 border border-gray-800 p-6;
+  }
+}

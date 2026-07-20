@@ -1,0 +1,21 @@
+{
+  "name": "CataLog",
+  "short_name": "CataLog",
+  "description": "AI-powered music library organizer for DJs",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030712",
+  "theme_color": "#7c3aed",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "utilities", "productivity"],
+  "lang": "en",
+  "dir": "ltr"
+}
