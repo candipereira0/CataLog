@@ -46,9 +46,10 @@ import {
   type VenueRow, type GigRow,
   // User genre helpers
   getUserGenresByHandle, setUserGenres, searchUsersByGenres,
+  getTrackAnalysis, saveTrackAnalysis,
 } from "./db";
 import { generateExport, type ExportFormat, EXPORT_CONTENT_TYPES, EXPORT_EXTENSIONS } from "./export";
-import { analyzeAudio } from "./analysis";
+import { analyzeAudio, deepAnalyze, deepAnalyzeWithFeedback } from "./analysis";
 import { aiTagTrack, aiGeneratePlaylist, aiSearchLibrary, aiSuggestTracks, aiDiscoverArtists, type TrackMetadata, type LibrarySummary } from "./ai";
 import { getCompatibleKeys, getKeyDistance, toCamelot, estimateEnergy } from "./camelot";
 import { identifyTrack } from "./shazam";
@@ -174,12 +175,13 @@ export function handleAuthLogout(req: Request): Response {
 export function handleAuthMe(req: Request): Response {
   const sessionId = getSessionCookie(req);
   if (!sessionId) return json({ user: null });
-  const user = getUserFromSession(sessionId);
-  if (!user) {
+  const u = getUserFromSession(sessionId);
+  if (!u) {
     const resp = json({ user: null });
     resp.headers.set("Set-Cookie", "session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0");
     return resp;
   }
+  const user = { id: u.id, email: u.email, display_name: u.displayName, handle: u.handle, tier: u.tier };
   return json({ user });
 }
 
@@ -385,8 +387,8 @@ export function handleTrackList(req: Request): Response {
     search: url.searchParams.get("search") || undefined,
   };
 
-  const { tracks, total } = listTracks(opts);
-  return json({ tracks, total, page: opts.page, limit: opts.limit });
+  const tracks = listTracks(auth.userId, { genre: opts.genre, search: opts.search, offset: (opts.page - 1) * opts.limit, limit: opts.limit });
+  return json({ tracks, total: tracks.length, page: opts.page, limit: opts.limit });
 }
 
 export function handleTrackGet(req: Request, id: string): Response {
@@ -704,8 +706,8 @@ export async function handlePlaylistGenerate(req: Request): Promise<Response> {
   ).get(auth.userId) as { minBpm: number | null; maxBpm: number | null } | undefined;
 
   const keys = (db.query(
-    "SELECT DISTINCT musical_key FROM tracks WHERE user_id = ? AND musical_key IS NOT NULL AND musical_key != '' ORDER BY musical_key"
-  ).all(auth.userId) as { musical_key: string }[]).map(r => r.musical_key);
+    "SELECT DISTINCT key FROM tracks WHERE user_id = ? AND key IS NOT NULL AND key != '' ORDER BY key"
+  ).all(auth.userId) as { key: string }[]).map(r => r.key);
 
   const library: LibrarySummary = {
     totalTracks,
@@ -829,15 +831,21 @@ export function handlePlaylistExport(req: Request, playlistId: string): Response
     return json({ error: "Invalid or missing format. Use: m3u, nml, rekordbox, serato, text" }, 400);
   }
 
-  const playlist = getPlaylist(parseInt(playlistId), auth.userId);
+  const playlist = getPlaylist(parseInt(playlistId));
   if (!playlist) return json({ error: "Playlist not found" }, 404);
 
-  const content = generateExport({ name: playlist.name, tracks: playlist.tracks }, format);
+  // Fetch tracks for this playlist
+  const db = getDb();
+  const trackRows = db.query(
+    "SELECT t.* FROM tracks t JOIN playlist_tracks pt ON pt.track_id = t.id WHERE pt.playlist_id = ? ORDER BY pt.position"
+  ).all(parseInt(playlistId));
+
+  const exportContent = generateExport({ name: playlist.name, tracks: trackRows }, format);
   const ext = EXPORT_EXTENSIONS[format];
   const contentType = EXPORT_CONTENT_TYPES[format];
   const filename = `${playlist.name.replace(/[^a-zA-Z0-9_-]/g, "_")}${ext}`;
 
-  return new Response(content, {
+  return new Response(exportContent, {
     status: 200,
     headers: {
       "Content-Type": `${contentType}; charset=utf-8`,
@@ -2814,4 +2822,62 @@ export function handleInspoDaily(req: Request): Response {
 export function handleInspoRandom(req: Request): Response {
   const challenge = generateRandomChallenge();
   return json({ challenge });
+}
+
+// ─── Deep Audio Analysis Handlers ───
+
+export async function handleTrackAnalyze(req: Request, id: string): Promise<Response> {
+  const auth = requireAuth(req);
+  if (auth instanceof Response) return auth;
+
+  const track = getTrack(parseInt(id), auth.userId);
+  if (!track) return json({ error: "Track not found" }, 404);
+
+  // Get optional feedback params
+  let acceptedSubgenres: string[] = [];
+  let rejectedSubgenres: string[] = [];
+  try {
+    const body = await parseBody(req) as { accepted?: string[]; rejected?: string[] };
+    if (body.accepted) acceptedSubgenres = body.accepted;
+    if (body.rejected) rejectedSubgenres = body.rejected;
+  } catch { /* no body or invalid */ }
+
+  const filepath = track.filepath || track.file_path;
+  if (!filepath) return json({ error: "Track has no file path" }, 400);
+
+  // Check if file exists
+  const { existsSync } = await import("node:fs");
+  if (!existsSync(filepath)) {
+    return json({ error: "Audio file not found on disk" }, 404);
+  }
+
+  try {
+    let analysis;
+    if (acceptedSubgenres.length > 0 || rejectedSubgenres.length > 0) {
+      analysis = await deepAnalyzeWithFeedback(filepath, track.bpm, track.key || track.musical_key, acceptedSubgenres, rejectedSubgenres);
+    } else {
+      analysis = await deepAnalyze(filepath, track.bpm, track.key || track.musical_key);
+    }
+
+    // Cache in DB
+    saveTrackAnalysis(parseInt(id), analysis);
+
+    return json({ analysis });
+  } catch (err) {
+    console.error("Deep analysis failed:", err);
+    return json({ error: "Analysis failed" }, 500);
+  }
+}
+
+export function handleTrackAnalysis(req: Request, id: string): Response {
+  const auth = requireAuth(req);
+  if (auth instanceof Response) return auth;
+
+  const track = getTrack(parseInt(id), auth.userId);
+  if (!track) return json({ error: "Track not found" }, 404);
+
+  const analysis = getTrackAnalysis(parseInt(id));
+  if (!analysis) return json({ analysis: null, cached: false });
+
+  return json({ analysis, cached: true });
 }

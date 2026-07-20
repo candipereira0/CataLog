@@ -341,7 +341,14 @@ function migrate(d: any) {
       genre TEXT NOT NULL,
       PRIMARY KEY (track_id, genre)
     );
+
+    -- Deep analysis column (add if missing on existing DBs)
+    ALTER TABLE tracks ADD COLUMN analysis_json TEXT;
   `);
+  // ALTER TABLE ADD COLUMN throws if column exists — ignore
+  try {
+    d.exec(`ALTER TABLE tracks ADD COLUMN analysis_json TEXT`);
+  } catch { /* column already exists */ }
 }
 
 function seed(d: any) {
@@ -357,7 +364,7 @@ function uuid() { return crypto.randomUUID(); }
 export function getUserFromSession(token: string) {
   const d = getDb();
   const row = d.query("SELECT s.user_id, u.email, u.display_name, u.handle, u.tier FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires_at > ?").get(token, now());
-  return row ? { userId: row.user_id, email: row.email, displayName: row.display_name, handle: row.handle, tier: row.tier } : null;
+  return row ? { id: row.user_id, userId: row.user_id, email: row.email, displayName: row.display_name, handle: row.handle, tier: row.tier } : null;
 }
 export function createSession(userId: number) {
   const d = getDb();
@@ -407,6 +414,14 @@ export function updateTrack(id: number, data: any) {
 export function deleteTrack(id: number) { getDb().run("DELETE FROM tracks WHERE id = ?", [id]); }
 export function incrementPlayCount(id: number) { getDb().run("UPDATE tracks SET plays = plays + 1 WHERE id = ?", [id]); }
 export function updateTrackSyncStatus(id: number, synced: number) { getDb().run("UPDATE tracks SET synced = ? WHERE id = ?", [synced, id]); }
+export function getTrackAnalysis(id: number): any | null {
+  const row = getDb().query("SELECT analysis_json FROM tracks WHERE id = ?").get(id) as { analysis_json: string | null } | undefined;
+  if (!row?.analysis_json) return null;
+  try { return JSON.parse(row.analysis_json); } catch { return null; }
+}
+export function saveTrackAnalysis(id: number, analysis: any): void {
+  getDb().run("UPDATE tracks SET analysis_json = ? WHERE id = ?", [JSON.stringify(analysis), id]);
+}
 export function getSyncStatus(userId: number) {
   const d = getDb();
   const total = (d.query("SELECT COUNT(*) as c FROM tracks WHERE user_id = ?").get(userId) as any).c;
@@ -460,8 +475,8 @@ export function getTrackTags(trackId: number) { return getDb().query("SELECT t.*
 // ─── Playlists ─────────────────────────────────────────────────────────
 export function createPlaylist(userId: number, name: string, description: string = "", isPublic: number = 0) {
   const d = getDb();
-  d.run("INSERT INTO playlists (user_id, name, description, is_public) VALUES (?, ?, ?, ?)", [userId, name, description, isPublic]);
-  return d.query("SELECT * FROM playlists WHERE id = ?").get(Number(d.run("SELECT last_insert_rowid()") as any));
+  const result = d.run("INSERT INTO playlists (user_id, name, description, is_public) VALUES (?, ?, ?, ?)", [userId, name, description, isPublic]);
+  return d.query("SELECT * FROM playlists WHERE id = ?").get(Number(result.lastInsertRowid));
 }
 export function listPlaylists(userId: number) { return getDb().query("SELECT * FROM playlists WHERE user_id = ? ORDER BY updated_at DESC").all(userId); }
 export function getPlaylist(id: number) { return rowOrNull(getDb().query("SELECT * FROM playlists WHERE id = ?").get(id)); }
@@ -471,8 +486,9 @@ export function addTrackToPlaylist(playlistId: number, trackId: number, position
   const pos = position ?? ((d.query("SELECT COALESCE(MAX(position),0)+1 as p FROM playlist_tracks WHERE playlist_id = ?").get(playlistId) as any)?.p ?? 1);
   try { d.run("INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id, position) VALUES (?, ?, ?)", [playlistId, trackId, pos]); } catch {}
   d.run("UPDATE playlists SET updated_at = ? WHERE id = ?", [now(), playlistId]);
+  return true;
 }
-export function removeTrackFromPlaylist(playlistId: number, trackId: number) { getDb().run("DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?", [playlistId, trackId]); }
+export function removeTrackFromPlaylist(playlistId: number, trackId: number) { getDb().run("DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?", [playlistId, trackId]); return true; }
 export function canAccessPlaylist(playlistId: number, userId: number) {
   const p = getPlaylist(playlistId);
   if (!p) return false;

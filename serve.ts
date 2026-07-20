@@ -46,6 +46,7 @@ import {
   handleCreateGig, handleGetVenueGigs, handleUserGigs, handleUpdateGig, handlePushSetlist, handleDeleteGig,
   handleGetUserGenres, handleUpdateMyGenres, handleSearchUsersByGenres,
   handleInspoDaily, handleInspoRandom,
+  handleTrackAnalyze, handleTrackAnalysis,
   json,
 } from "./server/handlers";
 import { handleGetUserMatches } from "./server/matches";
@@ -349,6 +350,13 @@ async function handleApiCall(req: Request): Promise<Response | null> {
     // ─── DJ Matches ───
     const userMatchesMatch = path.match(/^\/api\/users\/(\d+)\/matches$/);
     if (userMatchesMatch && method === "GET") return handleGetUserMatches(req, userMatchesMatch[1]);
+
+      // ─── Deep Analysis Routes
+      const trackAnalyzeMatch = path.match(/^\/api\/tracks\/(\d+)\/analyze$/);
+      if (trackAnalyzeMatch && method === "POST") return handleTrackAnalyze(req, trackAnalyzeMatch[1]);
+
+      const trackAnalysisMatch = path.match(/^\/api\/tracks\/(\d+)\/analysis$/);
+      if (trackAnalysisMatch && method === "GET") return handleTrackAnalysis(req, trackAnalysisMatch[1]);
 
     // ─── Inspo Routes ───
     if (path === "/api/inspo/daily" && method === "GET") return handleInspoDaily(req);

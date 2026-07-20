@@ -826,6 +826,16 @@ export const api = {
 
   deleteGig: (gigId: number) =>
       request<{ ok: boolean }>(`/gigs/${gigId}`, { method: "DELETE" }),
+
+  // ─── Deep Audio Analysis ───
+  analyzeTrack: (trackId: number, feedback?: { accepted?: string[]; rejected?: string[] }) =>
+    request<{ analysis: DeepAnalysisResult }>(`/tracks/${trackId}/analyze`, {
+      method: "POST",
+      body: feedback || {},
+    }),
+
+  getTrackAnalysis: (trackId: number) =>
+    request<{ analysis: DeepAnalysisResult | null; cached: boolean }>(`/tracks/${trackId}/analysis`),
   };
 
 // ─── Additional Types ───
@@ -1000,4 +1010,31 @@ export interface InspoChallenge {
   prompt: string;
   description: string;
   date: string;
+}
+
+export interface DeepAnalysisResult {
+  bpm: number | null;
+  key: string | null;
+  energy: number;
+  vocalPresence: boolean;
+  vocalGender: string | null;
+  instruments: {
+    kick: number;
+    snare: number;
+    hihat: number;
+    bass: number;
+    synth: number;
+    piano: number;
+    guitar: number;
+    strings: number;
+    brass: number;
+  };
+  beatPattern: string | null;
+  subgenreSuggestions: Array<{
+    subgenre: string;
+    parentGenre: string;
+    confidence: number;
+    reasons: string[];
+  }>;
+  analyzedAt: string;
 }

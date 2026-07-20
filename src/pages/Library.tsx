@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { api, type Track, type Tag } from "../lib/api";
+import { api, type Track, type Tag, type DeepAnalysisResult } from "../lib/api";
 import GenrePicker from "../components/GenrePicker";
 import {
   isFileSystemAccessSupported,
@@ -560,7 +560,7 @@ export default function Library() {
               Dismiss
             </button>
             <a
-              href="/settings"
+              href="https://buy.stripe.com/3cIeVcaDZcrSdVd31O5Vu00"
               className="btn-primary py-1.5 text-xs"
             >
               View Plans
@@ -932,6 +932,9 @@ export default function Library() {
               </div>
             </div>
 
+            {/* Deep Analysis */}
+            <DeepAnalysisSection trackId={selectedTrack.id} />
+
             {/* Tags */}
             <div className="mt-4 border-t border-gray-800 pt-4">
               <div className="flex items-center justify-between mb-2">
@@ -1142,6 +1145,218 @@ function AddTagButton({ trackId, onAdded }: { trackId: number; onAdded: () => vo
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function DeepAnalysisSection({ trackId }: { trackId: number }) {
+  const [analysis, setAnalysis] = useState<DeepAnalysisResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set());
+
+  // Load cached on mount
+  useEffect(() => {
+    api.getTrackAnalysis(trackId).then(({ analysis: cached }) => {
+      if (cached) { setAnalysis(cached); setExpanded(true); }
+    }).catch(() => {});
+  }, [trackId]);
+
+  const runAnalysis = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const accepted = [...feedbackGiven].filter(s => !s.startsWith("rej:"));
+      const rejected = [...feedbackGiven].filter(s => s.startsWith("rej:")).map(s => s.slice(4));
+      const { analysis: result } = await api.analyzeTrack(trackId, { accepted, rejected });
+      setAnalysis(result);
+      setExpanded(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Analysis failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFeedback = (subgenre: string, accepted: boolean) => {
+    const key = accepted ? subgenre : `rej:${subgenre}`;
+    setFeedbackGiven(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const instrumentLabels: Record<string, string> = {
+    kick: "Kick", snare: "Snare", hihat: "Hi-hat",
+    bass: "Bass", synth: "Synth", piano: "Piano",
+    guitar: "Guitar", strings: "Strings", brass: "Brass",
+  };
+
+  const beatPatternLabels: Record<string, string> = {
+    "four-on-the-floor": "Four-on-the-Floor",
+    "breakbeat": "Breakbeat",
+    "half-time": "Half-time",
+    "swing": "Swing",
+    "trap": "Trap",
+    "reggaeton": "Reggaeton",
+    "dubstep": "Dubstep",
+  };
+
+  const confidenceColor = (pct: number) => {
+    if (pct >= 80) return "text-emerald-400";
+    if (pct >= 50) return "text-amber-400";
+    return "text-gray-500";
+  };
+
+  return (
+    <div className="mt-4 border-t border-gray-800 pt-4">
+      <div className="flex items-center justify-between mb-2">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-200"
+        >
+          <svg className={`h-4 w-4 transition-transform ${expanded ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          Deep Analysis
+          {analysis && <span className="ml-1 rounded bg-violet-600/20 px-1 py-0.5 text-[10px] text-violet-400">cached</span>}
+        </button>
+        <button
+          onClick={runAnalysis}
+          disabled={loading}
+          className="btn-primary py-1 px-3 text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500"
+        >
+          {loading ? (
+            <>
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              Analyzing...
+            </>
+          ) : analysis ? (
+            <>
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Re-analyze
+            </>
+          ) : (
+            <>
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              Analyze
+            </>
+          )}
+        </button>
+      </div>
+
+      {error && <p className="mb-2 text-xs text-red-400">{error}</p>}
+
+      {expanded && analysis && (
+        <div className="space-y-4">
+          {/* Vocal / Instrumental breakdown */}
+          <div>
+            <p className="mb-2 text-xs font-medium text-gray-400">Vocal / Instrumental</p>
+            <div className="flex flex-wrap gap-2">
+              {analysis.vocalPresence ? (
+                <span className="inline-flex items-center gap-1 rounded bg-violet-600/20 px-2 py-1 text-xs text-violet-300">
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                  Vocals present
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded bg-gray-700/50 px-2 py-1 text-xs text-gray-400">Instrumental</span>
+              )}
+              {analysis.vocalGender && (
+                <span className="rounded bg-violet-600/10 px-2 py-1 text-xs text-violet-400 capitalize">{analysis.vocalGender} voice</span>
+              )}
+            </div>
+
+            {/* Instrument bars */}
+            <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {Object.entries(analysis.instruments).map(([key, val]) => (
+                <div key={key} className="flex flex-col gap-0.5">
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-500">{instrumentLabels[key] || key}</span>
+                    <span className={`${val > 0.4 ? "text-gray-300" : "text-gray-600"}`}>{Math.round(val * 100)}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-gray-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all"
+                      style={{ width: `${Math.round(val * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Beat Pattern */}
+          {analysis.beatPattern && (
+            <div>
+              <p className="mb-1 text-xs font-medium text-gray-400">Beat Pattern</p>
+              <span className="inline-block rounded bg-blue-600/20 px-2 py-1 text-xs text-blue-300">
+                {beatPatternLabels[analysis.beatPattern] || analysis.beatPattern}
+              </span>
+            </div>
+          )}
+
+          {/* Subgenre Suggestions */}
+          {analysis.subgenreSuggestions.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-medium text-gray-400">
+                Subgenre Suggestions
+                <span className="ml-1 text-gray-600">(click ✓ or ✗ to improve)</span>
+              </p>
+              <div className="space-y-2">
+                {analysis.subgenreSuggestions.map((sg, i) => {
+                  const isAccepted = feedbackGiven.has(sg.subgenre);
+                  const isRejected = feedbackGiven.has(`rej:${sg.subgenre}`);
+                  return (
+                    <div key={i} className={`rounded-lg p-3 ${isAccepted ? "bg-emerald-600/10 border border-emerald-700/30" : isRejected ? "bg-red-600/5 border border-red-700/20 opacity-60" : "bg-gray-800/50"}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-200">{sg.subgenre}</span>
+                          <span className="text-[10px] text-gray-500">{sg.parentGenre}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold ${confidenceColor(sg.confidence)}`}>{sg.confidence}%</span>
+                          <button
+                            onClick={() => handleFeedback(sg.subgenre, true)}
+                            className={`rounded p-0.5 text-xs ${isAccepted ? "bg-emerald-600/30 text-emerald-400" : "text-gray-600 hover:text-emerald-400"}`}
+                            title="Accept this suggestion"
+                          >✓</button>
+                          <button
+                            onClick={() => handleFeedback(sg.subgenre, false)}
+                            className={`rounded p-0.5 text-xs ${isRejected ? "bg-red-600/30 text-red-400" : "text-gray-600 hover:text-red-400"}`}
+                            title="Reject this suggestion"
+                          >✗</button>
+                        </div>
+                      </div>
+                      {sg.reasons.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {sg.reasons.map((r, j) => (
+                            <span key={j} className="rounded bg-gray-700/50 px-1.5 py-0.5 text-[10px] text-gray-400">{r}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {expanded && !analysis && !loading && (
+        <p className="text-xs text-gray-600">
+          Run analysis to detect vocals, instruments, beat pattern, and subgenre suggestions.
+        </p>
       )}
     </div>
   );

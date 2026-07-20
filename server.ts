@@ -44,6 +44,7 @@ import {
   handleCreateGig, handleGetVenueGigs, handleUserGigs, handleUpdateGig, handlePushSetlist, handleDeleteGig,
   handleGetUserGenres, handleUpdateMyGenres, handleSearchUsersByGenres,
   handleInspoDaily, handleInspoRandom,
+  handleTrackAnalyze, handleTrackAnalysis,
   json,
 } from "./server/handlers";
 import { handleGetUserMatches } from "./server/matches";
@@ -79,6 +80,7 @@ const server = Bun.serve({
       if (path === "/api/auth/login" && method === "POST") return handleAuthLogin(req);
       if (path === "/api/auth/logout" && method === "POST") return handleAuthLogout(req);
       if (path === "/api/auth/me" && method === "GET") return handleAuthMe(req);
+      if (path === "/api/me" && method === "GET") return handleAuthMe(req);
 
       // ─── Track Routes ───
       if (path === "/api/tracks/upload" && method === "POST") return handleTrackUpload(req);
@@ -353,6 +355,13 @@ const server = Bun.serve({
       // ─── DJ Matches ───
       const userMatchesMatch = path.match(/^\/api\/users\/(\d+)\/matches$/);
       if (userMatchesMatch && method === "GET") return handleGetUserMatches(req, userMatchesMatch[1]);
+
+      // ─── Deep Analysis Routes
+      const trackAnalyzeMatch = path.match(/^\/api\/tracks\/(\d+)\/analyze$/);
+      if (trackAnalyzeMatch && method === "POST") return handleTrackAnalyze(req, trackAnalyzeMatch[1]);
+
+      const trackAnalysisMatch = path.match(/^\/api\/tracks\/(\d+)\/analysis$/);
+      if (trackAnalysisMatch && method === "GET") return handleTrackAnalysis(req, trackAnalysisMatch[1]);
 
       // ─── Inspo Routes ───
       if (path === "/api/inspo/daily" && method === "GET") return handleInspoDaily(req);
