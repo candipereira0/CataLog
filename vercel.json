@@ -1,7 +1,6 @@
 {
-  "buildCommand": "bash build-vercel.sh",
-  "installCommand": "bun install",
+  "installCommand": "npm install",
+  "buildCommand": "npm run vercel-build",
   "outputDirectory": ".vercel/output",
-  "framework": null,
-  "rewrites": []
+  "framework": null
 }

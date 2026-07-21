@@ -58,6 +58,16 @@ import {
   handleApplePlaylistExport,
   handleAppleTrackSearch,
 } from "./server/music-apple";
+import {
+  handleSpotifyAuthUrl,
+  handleSpotifyCallback,
+  handleSpotifyStatus,
+  handleSpotifyDisconnect,
+  handleSpotifyPlaylistsList,
+  handleSpotifyPlaylistImport,
+  handleSpotifyPlaylistExport,
+  handleSpotifyTrackSearch,
+} from "./server/music-spotify";
 
 const PORT = 3000;
 const HOST = "0.0.0.0";
@@ -375,6 +385,17 @@ async function handleApiCall(req: Request): Promise<Response | null> {
     if (path === "/api/music/apple/search" && method === "GET") return handleAppleTrackSearch(req);
     const applePlaylistImportMatch = path.match(/^\/api\/music\/apple\/playlists\/([^/]+)\/import$/);
     if (applePlaylistImportMatch && method === "POST") return handleApplePlaylistImport(req);
+
+    // ─── Spotify Routes ───
+    if (path === "/api/music/spotify/auth-url" && method === "GET") return handleSpotifyAuthUrl(req);
+    if (path === "/api/music/spotify/callback" && method === "GET") return handleSpotifyCallback(req);
+    if (path === "/api/music/spotify/status" && method === "GET") return handleSpotifyStatus(req);
+    if (path === "/api/music/spotify/disconnect" && method === "POST") return handleSpotifyDisconnect(req);
+    if (path === "/api/music/spotify/playlists" && method === "GET") return handleSpotifyPlaylistsList(req);
+    if (path === "/api/music/spotify/playlists/export" && method === "POST") return handleSpotifyPlaylistExport(req);
+    if (path === "/api/music/spotify/search" && method === "GET") return handleSpotifyTrackSearch(req);
+    const spotifyPlaylistImportMatch = path.match(/^\/api\/music\/spotify\/playlists\/([^/]+)\/import$/);
+    if (spotifyPlaylistImportMatch && method === "POST") return handleSpotifyPlaylistImport(req);
 
     return json({ error: "Not found" }, 404);
   } catch (err) {

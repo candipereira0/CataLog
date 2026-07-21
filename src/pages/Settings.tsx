@@ -5,6 +5,7 @@ import { THEME_PRESETS } from "../lib/themes";
 import { timeAgo } from "../lib/timeago";
 import { api, type TipLink, type ArtistLink, type DeviceInfo } from "../lib/api";
 import AppleMusicSettings from "../components/AppleMusicSettings";
+import SpotifyConnect from "../components/SpotifyConnect";
 
 const STRIPE_PRO_ANNUAL = "https://buy.stripe.com/3cIeVcaDZcrSdVd31O5Vu00";
 const STRIPE_LIFETIME = "https://buy.stripe.com/aFa7sKfYjcrS18r31O5Vu01";
@@ -470,6 +471,9 @@ export default function Settings() {
 
       {/* Apple Music */}
       <AppleMusicSettings />
+
+      {/* Spotify */}
+      <SpotifyConnect />
 
       {/* Theme */}
       <div className="card mb-6">

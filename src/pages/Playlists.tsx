@@ -60,6 +60,17 @@ export default function Playlists() {
   const [appleExporting, setAppleExporting] = useState<number | null>(null);
   const [appleExportResult, setAppleExportResult] = useState<{ playlistId: number; matched: number; unmatched: number; url: string } | null>(null);
 
+  // Spotify import
+  const [showSpotifyImport, setShowSpotifyImport] = useState(false);
+  const [spotifyPlaylists, setSpotifyPlaylists] = useState<Array<{ id: string; name: string; description: string; trackCount: number }>>([]);
+  const [spotifyLoading, setSpotifyLoading] = useState(false);
+  const [spotifyImporting, setSpotifyImporting] = useState<string | null>(null);
+  const [spotifyMsg, setSpotifyMsg] = useState<string | null>(null);
+
+  // Spotify export
+  const [spotifyExporting, setSpotifyExporting] = useState<number | null>(null);
+  const [spotifyExportResult, setSpotifyExportResult] = useState<{ playlistId: number; matched: number; unmatched: number; url: string } | null>(null);
+
   // Share with followers
   const [shareFollowersLoading, setShareFollowersLoading] = useState<number | null>(null);
   const [shareFollowersResult, setShareFollowersResult] = useState<{ playlistId: number; count: number } | null>(null);
@@ -355,6 +366,66 @@ export default function Playlists() {
     }
   };
 
+  // ─── Spotify Import ───
+  const handleSpotifyImportOpen = async () => {
+    setShowSpotifyImport(true);
+    setSpotifyLoading(true);
+    setSpotifyMsg(null);
+    try {
+      const res = await fetch("/api/music/spotify/playlists", { credentials: "include" });
+      const data = await res.json();
+      setSpotifyPlaylists(data.playlists || []);
+    } catch {
+      setSpotifyMsg("Failed to load Spotify playlists. Connect Spotify in Settings first.");
+    } finally {
+      setSpotifyLoading(false);
+    }
+  };
+
+  const handleSpotifyImportPlaylist = async (spotifyPlaylistId: string) => {
+    setSpotifyImporting(spotifyPlaylistId);
+    setSpotifyMsg(null);
+    try {
+      const res = await fetch(`/api/music/spotify/playlists/${spotifyPlaylistId}/import`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      setSpotifyMsg(`Imported "${data.playlist?.id ? `playlist #${data.playlist.id}` : "playlist"}" with ${data.imported + data.matched}/${data.total} tracks`);
+      fetchPlaylists();
+    } catch {
+      setSpotifyMsg("Failed to import playlist");
+    } finally {
+      setSpotifyImporting(null);
+    }
+  };
+
+  // ─── Spotify Export ───
+  const handleSpotifyExport = async (playlistId: number) => {
+    setExportOpen(null);
+    setSpotifyExporting(playlistId);
+    setSpotifyExportResult(null);
+    try {
+      const res = await fetch("/api/music/spotify/playlists/export", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlistId }),
+      });
+      const data = await res.json();
+      setSpotifyExportResult({
+        playlistId,
+        matched: data.matched,
+        unmatched: data.unmatched,
+        url: data.spotifyUrl,
+      });
+    } catch {
+      setSpotifyMsg("Failed to export to Spotify");
+    } finally {
+      setSpotifyExporting(null);
+    }
+  };
+
   // Close export dropdown on outside click
   useEffect(() => {
     if (exportOpen === null) return;
@@ -402,6 +473,12 @@ export default function Playlists() {
               <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
             </svg>
             <span className="hidden sm:inline ml-2">Import from Apple Music</span>
+          </button>
+          <button onClick={handleSpotifyImportOpen} className="btn-secondary text-sm min-h-[44px]">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+            </svg>
+            <span className="hidden sm:inline ml-2">Import from Spotify</span>
           </button>
         </div>
       </div>
@@ -606,6 +683,64 @@ export default function Playlists() {
                       className="ml-3 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500 transition-colors disabled:opacity-50 flex-shrink-0"
                     >
                       {appleImporting === pl.id ? "Importing..." : "Import"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Spotify Import Modal */}
+      {showSpotifyImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowSpotifyImport(false)}>
+          <div className="absolute inset-0 bg-black/70" />
+          <div className="relative z-10 w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowSpotifyImport(false)}
+              className="absolute right-4 top-4 rounded-lg p-1 text-gray-500 hover:bg-gray-800 hover:text-gray-300"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h2 className="mb-2 text-xl font-bold text-white">Import from Spotify</h2>
+            <p className="mb-4 text-sm text-gray-400">
+              Select a playlist to import into your CataLog library.
+            </p>
+
+            {spotifyMsg && (
+              <div className="mb-4 rounded-lg bg-green-900/30 border border-green-800 px-4 py-3 text-sm text-green-300">
+                {spotifyMsg}
+              </div>
+            )}
+
+            {spotifyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+                <span className="ml-3 text-sm text-gray-400">Loading playlists...</span>
+              </div>
+            ) : spotifyPlaylists.length === 0 ? (
+              <p className="text-sm text-gray-500 py-4">No playlists found. Connect Spotify in Settings first.</p>
+            ) : (
+              <div className="space-y-2">
+                {spotifyPlaylists.map((pl) => (
+                  <div
+                    key={pl.id}
+                    className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800/50 p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-200 truncate">{pl.name}</p>
+                      <p className="text-xs text-gray-500">{pl.trackCount} tracks{pl.description ? ` · ${pl.description}` : ""}</p>
+                    </div>
+                    <button
+                      onClick={() => handleSpotifyImportPlaylist(pl.id)}
+                      disabled={spotifyImporting === pl.id}
+                      className="ml-3 rounded-lg bg-[#1DB954] px-3 py-1.5 text-xs font-medium text-black hover:bg-[#1ed760] transition-colors disabled:opacity-50 flex-shrink-0"
+                    >
+                      {spotifyImporting === pl.id ? "Importing..." : "Import"}
                     </button>
                   </div>
                 ))}
@@ -843,6 +978,18 @@ export default function Playlists() {
                         {appleExportResult && appleExportResult.playlistId === playlist.id && (
                           <div className="px-4 py-2 text-xs text-emerald-400">
                             ✓ {appleExportResult.matched}/{appleExportResult.matched + appleExportResult.unmatched} matched
+                          </div>
+                        )}
+                        <button
+                          onClick={() => handleSpotifyExport(playlist.id)}
+                          disabled={spotifyExporting === playlist.id}
+                          className="block w-full px-4 py-2 text-left text-xs text-green-300 hover:bg-gray-800 disabled:opacity-50"
+                        >
+                          {spotifyExporting === playlist.id ? "Exporting..." : "Export to Spotify"}
+                        </button>
+                        {spotifyExportResult && spotifyExportResult.playlistId === playlist.id && (
+                          <div className="px-4 py-2 text-xs text-green-400">
+                            ✓ {spotifyExportResult.matched}/{spotifyExportResult.matched + spotifyExportResult.unmatched} matched
                           </div>
                         )}
                       </div>
