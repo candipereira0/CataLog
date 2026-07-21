@@ -1,0 +1,7 @@
+{
+  "buildCommand": "bash build-vercel.sh",
+  "installCommand": "bun install",
+  "outputDirectory": ".vercel/output",
+  "framework": null,
+  "rewrites": []
+}
