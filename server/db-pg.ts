@@ -64,32 +64,34 @@ export interface TrackRow {
 }
 
 // ─── PG Query wrapper (mimics SQLite .query().get()/.all()) ────────────
+// @neondatabase/serverless .query() returns rows directly (array of objects),
+// NOT { rows: [...] } like node-postgres.
 class PgQuery {
   private sqlFn: any;
-  constructor(sqlFn: any, private querySql: string) { this.sqlFn = sqlFn; }
+  private querySql: string;
+  constructor(sqlFn: any, querySql: string) { this.sqlFn = sqlFn; this.querySql = querySql; }
   async get(...params: any[]): Promise<any> {
-    const r = await this.sqlFn.query(pgSql(this.querySql), params);
-    return r.rows[0] ?? null;
+    const rows = await this.sqlFn.query(pgSql(this.querySql), params);
+    return Array.isArray(rows) ? (rows[0] ?? null) : null;
   }
   async all(...params: any[]): Promise<any[]> {
-    const r = await this.sqlFn.query(pgSql(this.querySql), params);
-    return r.rows;
+    const rows = await this.sqlFn.query(pgSql(this.querySql), params);
+    return Array.isArray(rows) ? rows : [];
   }
 }
 
 // PG Database object (returned by getDb, mimics SQLite interface)
 class PgDb {
+  private sqlFn: any;
   constructor(sqlFn: any) { this.sqlFn = sqlFn; }
   query(sql: string) { return new PgQuery(this.sqlFn, sql); }
   async run(sql: string, params: any[] = []): Promise<{ lastInsertRowid: number }> {
-    const result = await this.sqlFn.query(pgSql(sql), params);
-    // If it was an INSERT, try to get the returned id
+    const rows = await this.sqlFn.query(pgSql(sql), params);
     const upperSql = sql.trim().toUpperCase();
     if (upperSql.startsWith("INSERT")) {
-      // Try to extract RETURNING id
       const retMatch = sql.match(/RETURNING\s+(\w+)/i);
-      if (retMatch && result.rows.length > 0) {
-        return { lastInsertRowid: Number(result.rows[0][retMatch[1].toLowerCase()]) };
+      if (retMatch && Array.isArray(rows) && rows.length > 0) {
+        return { lastInsertRowid: Number(rows[0][retMatch[1].toLowerCase()]) };
       }
       return { lastInsertRowid: 0 };
     }
@@ -103,10 +105,8 @@ class PgDb {
   }
   // Used for SELECT last_insert_rowid() emulation
   async getLastInsertId(table: string): Promise<number> {
-    // PG doesn't have last_insert_rowid; use currval
-    // But we use RETURNING in run() instead, so this is a fallback
-    const r = await this.sqlFn.query(`SELECT last_value FROM ${table}_id_seq`);
-    return r.rows[0]?.last_value ?? 0;
+    const rows = await this.sqlFn.query(`SELECT last_value FROM ${table}_id_seq`);
+    return Array.isArray(rows) ? (rows[0]?.last_value ?? 0) : 0;
   }
 }
 
@@ -125,250 +125,257 @@ function now() { return new Date().toISOString(); }
 function uuid() { return crypto.randomUUID(); }
 
 // ─── Migration ─────────────────────────────────────────────────────────
+// Each CREATE TABLE is its own query because @neondatabase/serverless
+// uses prepared statements and doesn't support multi-statement queries.
+const MIGRATIONS = [
+  `CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    display_name TEXT NOT NULL DEFAULT '',
+    handle TEXT UNIQUE,
+    bio TEXT DEFAULT '',
+    avatar_url TEXT DEFAULT '',
+    tier TEXT NOT NULL DEFAULT 'free',
+    created_at TEXT NOT NULL DEFAULT NOW(),
+    updated_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS tracks (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    title TEXT,
+    artist TEXT,
+    album TEXT,
+    genre TEXT,
+    bpm DOUBLE PRECISION,
+    key TEXT,
+    duration DOUBLE PRECISION,
+    file_path TEXT,
+    file_size INTEGER,
+    mime_type TEXT,
+    energy DOUBLE PRECISION DEFAULT 5,
+    plays INTEGER DEFAULT 0,
+    synced INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT NOW(),
+    updated_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS tags (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS track_tags (
+    track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (track_id, tag_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS playlists (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    is_public INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT NOW(),
+    updated_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS playlist_tracks (
+    playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+    track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0,
+    added_at TEXT NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (playlist_id, track_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS shares (
+    id SERIAL PRIMARY KEY,
+    playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT NOW(),
+    expires_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS payments (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    stripe_session_id TEXT UNIQUE,
+    amount DOUBLE PRECISION,
+    currency TEXT DEFAULT 'usd',
+    status TEXT DEFAULT 'pending',
+    tier TEXT,
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS identifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    audio_hash TEXT,
+    title TEXT,
+    artist TEXT,
+    album TEXT,
+    genre TEXT,
+    added_to_library INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS follows (
+    follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (follower_id, following_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS playlist_collaborators (
+    playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT DEFAULT 'editor',
+    created_at TEXT NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (playlist_id, user_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS posts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    playlist_id INTEGER REFERENCES playlists(id) ON DELETE SET NULL,
+    track_id INTEGER REFERENCES tracks(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS post_likes (
+    post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (post_id, user_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    data TEXT,
+    is_read INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS tip_links (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    platform TEXT NOT NULL,
+    url TEXT NOT NULL,
+    label TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS tips (
+    id SERIAL PRIMARY KEY,
+    from_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    message TEXT DEFAULT '',
+    playlist_id INTEGER REFERENCES playlists(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS artist_tracks (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    artist TEXT NOT NULL,
+    album TEXT DEFAULT '',
+    genre TEXT DEFAULT '',
+    bpm DOUBLE PRECISION,
+    key TEXT,
+    duration DOUBLE PRECISION,
+    file_path TEXT,
+    file_size INTEGER,
+    mime_type TEXT,
+    plays INTEGER DEFAULT 0,
+    downloads INTEGER DEFAULT 0,
+    is_published INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT NOW(),
+    updated_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS artist_track_tags (
+    track_id INTEGER NOT NULL REFERENCES artist_tracks(id) ON DELETE CASCADE,
+    tag_name TEXT NOT NULL,
+    PRIMARY KEY (track_id, tag_name)
+  )`,
+  `CREATE TABLE IF NOT EXISTS artist_links (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    platform TEXT NOT NULL,
+    url TEXT NOT NULL,
+    label TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS artist_profiles (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    artist_name TEXT,
+    bio TEXT DEFAULT '',
+    genre TEXT DEFAULT '',
+    location TEXT DEFAULT '',
+    website TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT NOW(),
+    updated_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS devices (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    device_name TEXT NOT NULL,
+    device_type TEXT DEFAULT 'browser',
+    session_token TEXT,
+    last_seen TEXT NOT NULL DEFAULT NOW(),
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS device_actions (
+    id SERIAL PRIMARY KEY,
+    device_id INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+    action_type TEXT NOT NULL,
+    payload TEXT DEFAULT '{}',
+    status TEXT DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT NOW(),
+    completed_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS venues (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    address TEXT DEFAULT '',
+    capacity INTEGER DEFAULT 0,
+    light_system_type TEXT DEFAULT 'none',
+    light_system_config TEXT DEFAULT '{}',
+    owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS venue_gigs (
+    id SERIAL PRIMARY KEY,
+    venue_id INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+    dj_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    theme TEXT DEFAULT '',
+    date TEXT NOT NULL,
+    start_time TEXT DEFAULT '',
+    end_time TEXT DEFAULT '',
+    setlist_playlist_id INTEGER REFERENCES playlists(id) ON DELETE SET NULL,
+    status TEXT DEFAULT 'scheduled',
+    created_at TEXT NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS user_genres (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    genre TEXT NOT NULL,
+    PRIMARY KEY (user_id, genre)
+  )`,
+  `CREATE TABLE IF NOT EXISTS track_genres (
+    track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+    genre TEXT NOT NULL,
+    PRIMARY KEY (track_id, genre)
+  )`,
+];
+
 export async function migrate(): Promise<void> {
   const p = getSql();
-  await p.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      email TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      display_name TEXT NOT NULL DEFAULT '',
-      handle TEXT UNIQUE,
-      bio TEXT DEFAULT '',
-      avatar_url TEXT DEFAULT '',
-      tier TEXT NOT NULL DEFAULT 'free',
-      created_at TEXT NOT NULL DEFAULT NOW(),
-      updated_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS sessions (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token TEXT NOT NULL UNIQUE,
-      expires_at TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS tracks (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      filename TEXT NOT NULL,
-      title TEXT,
-      artist TEXT,
-      album TEXT,
-      genre TEXT,
-      bpm DOUBLE PRECISION,
-      key TEXT,
-      duration DOUBLE PRECISION,
-      file_path TEXT,
-      file_size INTEGER,
-      mime_type TEXT,
-      energy DOUBLE PRECISION DEFAULT 5,
-      plays INTEGER DEFAULT 0,
-      synced INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT NOW(),
-      updated_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS tags (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS track_tags (
-      track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
-      tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-      PRIMARY KEY (track_id, tag_id)
-    );
-    CREATE TABLE IF NOT EXISTS playlists (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      is_public INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT NOW(),
-      updated_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS playlist_tracks (
-      playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
-      track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
-      position INTEGER NOT NULL DEFAULT 0,
-      added_at TEXT NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (playlist_id, track_id)
-    );
-    CREATE TABLE IF NOT EXISTS shares (
-      id SERIAL PRIMARY KEY,
-      playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
-      token TEXT NOT NULL UNIQUE,
-      created_at TEXT NOT NULL DEFAULT NOW(),
-      expires_at TEXT
-    );
-    CREATE TABLE IF NOT EXISTS payments (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      stripe_session_id TEXT UNIQUE,
-      amount DOUBLE PRECISION,
-      currency TEXT DEFAULT 'usd',
-      status TEXT DEFAULT 'pending',
-      tier TEXT,
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS identifications (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      audio_hash TEXT,
-      title TEXT,
-      artist TEXT,
-      album TEXT,
-      genre TEXT,
-      added_to_library INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS follows (
-      follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      created_at TEXT NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (follower_id, following_id)
-    );
-    CREATE TABLE IF NOT EXISTS playlist_collaborators (
-      playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      role TEXT DEFAULT 'editor',
-      created_at TEXT NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (playlist_id, user_id)
-    );
-    CREATE TABLE IF NOT EXISTS posts (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      content TEXT NOT NULL,
-      playlist_id INTEGER REFERENCES playlists(id) ON DELETE SET NULL,
-      track_id INTEGER REFERENCES tracks(id) ON DELETE SET NULL,
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS post_likes (
-      post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      created_at TEXT NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (post_id, user_id)
-    );
-    CREATE TABLE IF NOT EXISTS notifications (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      type TEXT NOT NULL,
-      message TEXT NOT NULL,
-      data TEXT,
-      is_read INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS tip_links (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      platform TEXT NOT NULL,
-      url TEXT NOT NULL,
-      label TEXT DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS tips (
-      id SERIAL PRIMARY KEY,
-      from_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      amount DOUBLE PRECISION NOT NULL DEFAULT 0,
-      message TEXT DEFAULT '',
-      playlist_id INTEGER REFERENCES playlists(id) ON DELETE SET NULL,
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS artist_tracks (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      title TEXT NOT NULL,
-      artist TEXT NOT NULL,
-      album TEXT DEFAULT '',
-      genre TEXT DEFAULT '',
-      bpm DOUBLE PRECISION,
-      key TEXT,
-      duration DOUBLE PRECISION,
-      file_path TEXT,
-      file_size INTEGER,
-      mime_type TEXT,
-      plays INTEGER DEFAULT 0,
-      downloads INTEGER DEFAULT 0,
-      is_published INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT NOW(),
-      updated_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS artist_track_tags (
-      track_id INTEGER NOT NULL REFERENCES artist_tracks(id) ON DELETE CASCADE,
-      tag_name TEXT NOT NULL,
-      PRIMARY KEY (track_id, tag_name)
-    );
-    CREATE TABLE IF NOT EXISTS artist_links (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      platform TEXT NOT NULL,
-      url TEXT NOT NULL,
-      label TEXT DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS artist_profiles (
-      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-      artist_name TEXT,
-      bio TEXT DEFAULT '',
-      genre TEXT DEFAULT '',
-      location TEXT DEFAULT '',
-      website TEXT DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT NOW(),
-      updated_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS devices (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      device_name TEXT NOT NULL,
-      device_type TEXT DEFAULT 'browser',
-      session_token TEXT,
-      last_seen TEXT NOT NULL DEFAULT NOW(),
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS device_actions (
-      id SERIAL PRIMARY KEY,
-      device_id INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-      action_type TEXT NOT NULL,
-      payload TEXT DEFAULT '{}',
-      status TEXT DEFAULT 'pending',
-      created_at TEXT NOT NULL DEFAULT NOW(),
-      completed_at TEXT
-    );
-    CREATE TABLE IF NOT EXISTS venues (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      address TEXT DEFAULT '',
-      capacity INTEGER DEFAULT 0,
-      light_system_type TEXT DEFAULT 'none',
-      light_system_config TEXT DEFAULT '{}',
-      owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS venue_gigs (
-      id SERIAL PRIMARY KEY,
-      venue_id INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
-      dj_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      title TEXT NOT NULL,
-      theme TEXT DEFAULT '',
-      date TEXT NOT NULL,
-      start_time TEXT DEFAULT '',
-      end_time TEXT DEFAULT '',
-      setlist_playlist_id INTEGER REFERENCES playlists(id) ON DELETE SET NULL,
-      status TEXT DEFAULT 'scheduled',
-      created_at TEXT NOT NULL DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS user_genres (
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      genre TEXT NOT NULL,
-      PRIMARY KEY (user_id, genre)
-    );
-    CREATE TABLE IF NOT EXISTS track_genres (
-      track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
-      genre TEXT NOT NULL,
-      PRIMARY KEY (track_id, genre)
-    );
-  `);
+  for (const sql of MIGRATIONS) {
+    await p.query(sql);
+  }
+  console.log("[pg] Migrations complete — all tables created.");
 }
 
 // ─── Seed demo user ────────────────────────────────────────────────────
@@ -376,7 +383,7 @@ export async function seed(): Promise<void> {
   const d = getDb();
   const existing = await d.query("SELECT id FROM users").all();
   if (existing.length === 0) {
-    const passwordHash = await Bun.password.hash("password123");
+    const passwordHash = await (globalThis as any).Bun.password.hash("password123");
     await d.run(
       "INSERT INTO users (email, password_hash, display_name, handle, tier) VALUES ($1, $2, $3, $4, $5) RETURNING id",
       ["demo@catalog.app", passwordHash, "Demo DJ", "demo", "pro"]

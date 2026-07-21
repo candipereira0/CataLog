@@ -1,6 +1,80 @@
 // Vercel Build Output API v3 entry point.
 // Adapter: Node (req, res) → Web fetch handler.
 // Handles /api/* routes and serves static files with SPA fallback.
+
+// ─── Bun API polyfill for Node.js runtime ──────────────────────────────
+// When running on Vercel's Node.js, Bun globals are unavailable.
+// Inject minimal polyfills for Bun.password, Bun.file, Bun.write.
+import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
+import { readFileSync as _readFile, writeFileSync as _writeFile } from "node:fs";
+
+if (typeof (globalThis as any).Bun === "undefined") {
+  const bunShim: any = {};
+  
+  bunShim.password = {
+    hash(password: string): Promise<string> {
+      const salt = randomBytes(16).toString("hex");
+      const hash = scryptSync(password, salt, 64).toString("hex");
+      return Promise.resolve(`scrypt:${salt}:${hash}`);
+    },
+    hashSync(password: string): string {
+      const salt = randomBytes(16).toString("hex");
+      const hash = scryptSync(password, salt, 64).toString("hex");
+      return `scrypt:${salt}:${hash}`;
+    },
+    verifySync(password: string, stored: string): boolean {
+      if (stored.startsWith("scrypt:")) {
+        const [, salt, hash] = stored.split(":");
+        const computed = scryptSync(password, salt, 64);
+        const storedBuf = Buffer.from(hash, "hex");
+        if (computed.length !== storedBuf.length) return false;
+        return timingSafeEqual(computed, storedBuf);
+      }
+      return false;
+    },
+    verify(password: string, stored: string): Promise<boolean> {
+      return Promise.resolve(this.verifySync(password, stored));
+    },
+  };
+
+  bunShim.file = (path: string) => {
+    const buf = _readFile(path);
+    return {
+      exists: () => Promise.resolve(true),
+      arrayBuffer: () => Promise.resolve(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer),
+      text: () => Promise.resolve(buf.toString("utf-8")),
+      stream: () => { throw new Error("Bun.file().stream() not polyfilled"); },
+      size: buf.length,
+      type: "",
+    };
+  };
+
+  bunShim.write = async (path: string, data: any) => {
+    if (typeof data === "string") { _writeFile(path, data); return; }
+    if (data instanceof Uint8Array) { _writeFile(path, data); return; }
+    if (data?.arrayBuffer) {
+      const ab = await data.arrayBuffer();
+      _writeFile(path, new Uint8Array(ab));
+      return;
+    }
+    // For BunFile objects (from Bun.file)
+    if (data?.stream) {
+      const reader = data.stream().getReader();
+      const chunks: Buffer[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(Buffer.from(value));
+      }
+      _writeFile(path, Buffer.concat(chunks));
+      return;
+    }
+    throw new Error("Bun.write polyfill: unsupported data type");
+  };
+
+  (globalThis as any).Bun = bunShim;
+}
+
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
