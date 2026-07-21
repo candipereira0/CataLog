@@ -205,6 +205,12 @@ export const api = {
       body: { credential },
     }),
 
+  appleLogin: (identityToken: string, user?: string, fullName?: string, email?: string) =>
+    request<{ user: User }>("/auth/apple", {
+      method: "POST",
+      body: { identityToken, user, fullName, email },
+    }),
+
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
 
   me: () => request<{ user: User | null }>("/auth/me"),

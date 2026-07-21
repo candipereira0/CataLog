@@ -81,7 +81,7 @@ function initSqlite(): any {
     sqliteDb.exec("PRAGMA journal_mode=WAL");
     sqliteDb.exec("PRAGMA foreign_keys=ON");
     sqliteDb.exec(`
-      CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, display_name TEXT NOT NULL DEFAULT '', handle TEXT UNIQUE, bio TEXT DEFAULT '', avatar_url TEXT DEFAULT '', tier TEXT NOT NULL DEFAULT 'free', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')));
+      CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, display_name TEXT NOT NULL DEFAULT '', handle TEXT UNIQUE, bio TEXT DEFAULT '', avatar_url TEXT DEFAULT '', tier TEXT NOT NULL DEFAULT 'free', apple_id TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')));
       CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, token TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')));
       CREATE TABLE IF NOT EXISTS tracks (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, filename TEXT NOT NULL, title TEXT, artist TEXT, album TEXT, genre TEXT, bpm REAL, key TEXT, duration REAL, file_path TEXT, file_size INTEGER, mime_type TEXT, energy REAL DEFAULT 5, plays INTEGER DEFAULT 0, synced INTEGER DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')));
       CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, name TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')));
@@ -109,6 +109,8 @@ function initSqlite(): any {
       CREATE TABLE IF NOT EXISTS user_genres (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, genre TEXT NOT NULL, PRIMARY KEY (user_id, genre));
       CREATE TABLE IF NOT EXISTS track_genres (track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE, genre TEXT NOT NULL, PRIMARY KEY (track_id, genre));
     `);
+    // Migration: add apple_id column for existing databases
+    try { sqliteDb.exec("ALTER TABLE users ADD COLUMN apple_id TEXT"); } catch { /* column already exists */ }
   }
   return sqliteDb;
 }

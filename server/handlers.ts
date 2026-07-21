@@ -267,6 +267,181 @@ export async function handleAuthGoogle(req: Request): Promise<Response> {
   return resp;
 }
 
+// ─── Apple Auth Handler ───
+
+async function verifyAppleToken(identityToken: string, appleClientId?: string): Promise<{ email?: string; sub?: string } | null> {
+  // Mock mode
+  if (identityToken.startsWith("mock-")) {
+    const parts = identityToken.replace("mock-", "").split("|");
+    return {
+      email: parts[0] || "apple-demo@catalog.app",
+      sub: parts[2] || "mock-apple-sub",
+    };
+  }
+
+  // Real mode: decode JWT and verify
+  try {
+    const [headerB64, payloadB64] = identityToken.split(".");
+    if (!headerB64 || !payloadB64) return null;
+
+    // Decode payload
+    const payloadJson = Buffer.from(payloadB64.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
+    const payload = JSON.parse(payloadJson);
+
+    // Basic validation
+    if (payload.exp && Date.now() / 1000 > payload.exp) {
+      console.error("Apple token expired");
+      return null;
+    }
+    if (payload.iss !== "https://appleid.apple.com") {
+      console.error("Apple token: invalid issuer");
+      return null;
+    }
+    if (appleClientId && payload.aud !== appleClientId) {
+      console.error("Apple token: audience mismatch");
+      return null;
+    }
+
+    // Attempt JWKS signature verification
+    try {
+      const header = JSON.parse(Buffer.from(headerB64.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8"));
+      const kid = header.kid;
+      if (kid) {
+        const jwksResp = await fetch("https://appleid.apple.com/auth/keys");
+        if (jwksResp.ok) {
+          const jwks = await jwksResp.json() as { keys: Array<{ kid: string; kty: string; n: string; e: string; use: string; alg: string }> };
+          const key = jwks.keys.find(k => k.kid === kid);
+          if (key) {
+            const jwkKey: JsonWebKey = {
+              kty: key.kty,
+              n: key.n,
+              e: key.e,
+              alg: "RS256",
+            };
+            const cryptoKey = await crypto.subtle.importKey(
+              "jwk",
+              jwkKey,
+              { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+              false,
+              ["verify"]
+            );
+            const msg = new TextEncoder().encode(headerB64 + "." + payloadB64);
+            const sigB64 = identityToken.split(".")[2] || "";
+            const sigBytes = Uint8Array.from(
+              Buffer.from(sigB64.replace(/-/g, "+").replace(/_/g, "/"), "base64")
+            );
+            const valid = await crypto.subtle.verify(
+              { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+              cryptoKey,
+              sigBytes,
+              msg
+            );
+            if (!valid) {
+              console.error("Apple JWT signature verification failed");
+              return null;
+            }
+          }
+        }
+      }
+    } catch (verifyErr) {
+      console.warn("Apple JWT verification skipped (JWKS error):", verifyErr);
+      // Continue with basic validation only
+    }
+
+    return {
+      email: payload.email,
+      sub: payload.sub,
+    };
+  } catch (err) {
+    console.error("Apple token decode error:", err);
+    return null;
+  }
+}
+
+export async function handleAuthApple(req: Request): Promise<Response> {
+  const body = (await parseBody(req)) as { identityToken?: string; user?: string; fullName?: string; email?: string };
+  const { identityToken, fullName, email: bodyEmail } = body;
+  if (!identityToken) return json({ error: "Missing identityToken" }, 400);
+
+  const appleClientId = process.env.APPLE_CLIENT_ID;
+
+  // Verify the token
+  const verified = await verifyAppleToken(identityToken, appleClientId);
+
+  let email: string;
+  let displayName: string;
+  let appleSub: string | null = null;
+
+  if (identityToken.startsWith("mock-")) {
+    // Mock mode: parse token directly
+    const parts = identityToken.replace("mock-", "").split("|");
+    email = parts[0] || "apple-demo@catalog.app";
+    displayName = parts[1] || fullName || email.split("@")[0];
+    appleSub = parts[2] || "mock-apple-sub";
+  } else {
+    // Real mode: use verified token data
+    if (!verified) {
+      return json({ error: "Invalid Apple identity token" }, 401);
+    }
+    email = bodyEmail || verified.email || "";
+    if (!email) {
+      return json({ error: "Email not provided by Apple" }, 400);
+    }
+    displayName = fullName || email.split("@")[0];
+    appleSub = verified.sub || null;
+  }
+
+  const db = getDb();
+
+  // Look up by email first, then by apple_id
+  let row = await db.query(
+    "SELECT id, email, display_name, handle, tier FROM users WHERE email = ?"
+  ).get(email) as { id: number; email: string; display_name: string; handle: string | null; tier: string } | undefined;
+
+  if (!row && appleSub) {
+    row = await db.query(
+      "SELECT id, email, display_name, handle, tier FROM users WHERE apple_id = ?"
+    ).get(appleSub) as { id: number; email: string; display_name: string; handle: string | null; tier: string } | undefined;
+  }
+
+  if (!row) {
+    // Create new user
+    const randomPassword = crypto.randomUUID();
+    const passwordHash = Bun.password.hashSync(randomPassword);
+    let handle = displayName.toLowerCase().replace(/[^a-z0-9_-]/g, "").replace(/_{2,}/g, "_").replace(/^[_-]+|[_-]+$/g, "").slice(0, 30) || "user";
+    while (handle.length < 3) handle += "0";
+    let suffix = 0;
+    let candidate = handle;
+    while (await db.query("SELECT id FROM users WHERE handle = ?").get(candidate)) {
+      suffix++;
+      candidate = handle + suffix;
+    }
+    handle = candidate;
+
+    const result = await db.run(
+      "INSERT INTO users (email, password_hash, display_name, handle, apple_id) VALUES (?, ?, ?, ?, ?)",
+      [email, passwordHash, displayName, handle, appleSub]
+    );
+    row = {
+      id: Number(result.lastInsertRowid),
+      email,
+      display_name: displayName,
+      handle,
+      tier: "free",
+    };
+  } else if (appleSub) {
+    // Update apple_id if not set
+    await db.run("UPDATE users SET apple_id = ? WHERE id = ? AND apple_id IS NULL", [appleSub, row.id]);
+  }
+
+  const sessionId = await createSession(row.id);
+  const user = { id: row.id, email: row.email, display_name: row.display_name, handle: row.handle, tier: row.tier };
+  const resp = json({ user });
+  resp.headers.set("Set-Cookie", "session=" + sessionId + "; HttpOnly; SameSite=Lax; Path=/; Max-Age=" + (60 * 60 * 24 * 7));
+  return resp;
+}
+
+
 // ─── Track Handlers ───
 
 export async function handleTrackUpload(req: Request): Promise<Response> {

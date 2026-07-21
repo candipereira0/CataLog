@@ -49,6 +49,17 @@ export default function Playlists() {
   const [suggestedTracks, setSuggestedTracks] = useState<ExternalTrackSuggestion[]>([]);
   const [suggestError, setSuggestError] = useState<string | null>(null);
 
+  // Apple Music import
+  const [showAppleImport, setShowAppleImport] = useState(false);
+  const [applePlaylists, setApplePlaylists] = useState<Array<{ id: string; name: string; description: string; trackCount: number }>>([]);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [appleImporting, setAppleImporting] = useState<string | null>(null);
+  const [appleMsg, setAppleMsg] = useState<string | null>(null);
+
+  // Apple Music export
+  const [appleExporting, setAppleExporting] = useState<number | null>(null);
+  const [appleExportResult, setAppleExportResult] = useState<{ playlistId: number; matched: number; unmatched: number; url: string } | null>(null);
+
   // Share with followers
   const [shareFollowersLoading, setShareFollowersLoading] = useState<number | null>(null);
   const [shareFollowersResult, setShareFollowersResult] = useState<{ playlistId: number; count: number } | null>(null);
@@ -284,6 +295,66 @@ export default function Playlists() {
 
   const trackCount = (p: Playlist) => p.tracks?.length ?? 0;
 
+  // ─── Apple Music Import ───
+  const handleAppleImportOpen = async () => {
+    setShowAppleImport(true);
+    setAppleLoading(true);
+    setAppleMsg(null);
+    try {
+      const res = await fetch("/api/music/apple/playlists", { credentials: "include" });
+      const data = await res.json();
+      setApplePlaylists(data.playlists || []);
+    } catch {
+      setAppleMsg("Failed to load Apple Music playlists");
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
+  const handleAppleImportPlaylist = async (applePlaylistId: string) => {
+    setAppleImporting(applePlaylistId);
+    setAppleMsg(null);
+    try {
+      const res = await fetch(`/api/music/apple/playlists/${applePlaylistId}/import`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      setAppleMsg(`Imported "${data.playlist?.name}" with ${data.imported}/${data.total} tracks`);
+      loadPlaylists();
+    } catch {
+      setAppleMsg("Failed to import playlist");
+    } finally {
+      setAppleImporting(null);
+    }
+  };
+
+  // ─── Apple Music Export ───
+  const handleAppleExport = async (playlistId: number) => {
+    setExportOpen(null);
+    setAppleExporting(playlistId);
+    setAppleExportResult(null);
+    try {
+      const res = await fetch("/api/music/apple/playlists/export", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlistId }),
+      });
+      const data = await res.json();
+      setAppleExportResult({
+        playlistId,
+        matched: data.matched,
+        unmatched: data.unmatched,
+        url: data.applePlaylistUrl,
+      });
+    } catch {
+      setAppleMsg("Failed to export to Apple Music");
+    } finally {
+      setAppleExporting(null);
+    }
+  };
+
   // Close export dropdown on outside click
   useEffect(() => {
     if (exportOpen === null) return;
@@ -325,6 +396,12 @@ export default function Playlists() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
             <span className="hidden sm:inline ml-2">New Playlist</span>
+          </button>
+          <button onClick={handleAppleImportOpen} className="btn-secondary text-sm min-h-[44px]">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+            </svg>
+            <span className="hidden sm:inline ml-2">Import from Apple Music</span>
           </button>
         </div>
       </div>
@@ -474,6 +551,64 @@ export default function Playlists() {
                   <button onClick={() => { setShowAIGenerate(false); setAiResult(null); }} className="btn-primary">Done</button>
                   <button onClick={() => { setAiResult(null); setAiPrompt(""); setAiError(null); }} className="btn-secondary">Generate Another</button>
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Apple Music Import Modal */}
+      {showAppleImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowAppleImport(false)}>
+          <div className="absolute inset-0 bg-black/70" />
+          <div className="relative z-10 w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowAppleImport(false)}
+              className="absolute right-4 top-4 rounded-lg p-1 text-gray-500 hover:bg-gray-800 hover:text-gray-300"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h2 className="mb-2 text-xl font-bold text-white">Import from Apple Music</h2>
+            <p className="mb-4 text-sm text-gray-400">
+              Select a playlist to import into your CataLog library.
+            </p>
+
+            {appleMsg && (
+              <div className="mb-4 rounded-lg bg-green-900/30 border border-green-800 px-4 py-3 text-sm text-green-300">
+                {appleMsg}
+              </div>
+            )}
+
+            {appleLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+                <span className="ml-3 text-sm text-gray-400">Loading playlists...</span>
+              </div>
+            ) : applePlaylists.length === 0 ? (
+              <p className="text-sm text-gray-500 py-4">No playlists found. Connect Apple Music in Settings first.</p>
+            ) : (
+              <div className="space-y-2">
+                {applePlaylists.map((pl) => (
+                  <div
+                    key={pl.id}
+                    className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800/50 p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-200 truncate">{pl.name}</p>
+                      <p className="text-xs text-gray-500">{pl.trackCount} tracks{pl.description ? ` · ${pl.description}` : ""}</p>
+                    </div>
+                    <button
+                      onClick={() => handleAppleImportPlaylist(pl.id)}
+                      disabled={appleImporting === pl.id}
+                      className="ml-3 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500 transition-colors disabled:opacity-50 flex-shrink-0"
+                    >
+                      {appleImporting === pl.id ? "Importing..." : "Import"}
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -697,6 +832,19 @@ export default function Playlists() {
                         <button onClick={() => handleExport(playlist.id, "rekordbox")} className="block w-full px-4 py-2 text-left text-xs text-gray-300 hover:bg-gray-800">Export as .xml (Rekordbox)</button>
                         <button onClick={() => handleExport(playlist.id, "serato")} className="block w-full px-4 py-2 text-left text-xs text-gray-300 hover:bg-gray-800">Export as .crate (Serato)</button>
                         <button onClick={() => handleExport(playlist.id, "text")} className="block w-full px-4 py-2 text-left text-xs text-gray-300 hover:bg-gray-800">Export as .txt</button>
+                        <div className="border-t border-gray-700 my-1" />
+                        <button
+                          onClick={() => handleAppleExport(playlist.id)}
+                          disabled={appleExporting === playlist.id}
+                          className="block w-full px-4 py-2 text-left text-xs text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+                        >
+                          {appleExporting === playlist.id ? "Exporting..." : "Export to Apple Music"}
+                        </button>
+                        {appleExportResult && appleExportResult.playlistId === playlist.id && (
+                          <div className="px-4 py-2 text-xs text-emerald-400">
+                            ✓ {appleExportResult.matched}/{appleExportResult.matched + appleExportResult.unmatched} matched
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

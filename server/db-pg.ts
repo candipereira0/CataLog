@@ -137,9 +137,11 @@ const MIGRATIONS = [
     bio TEXT DEFAULT '',
     avatar_url TEXT DEFAULT '',
     tier TEXT NOT NULL DEFAULT 'free',
+    apple_id TEXT,
     created_at TEXT NOT NULL DEFAULT NOW(),
     updated_at TEXT NOT NULL DEFAULT NOW()
   )`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_id TEXT`,
   `CREATE TABLE IF NOT EXISTS sessions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

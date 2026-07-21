@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import GoogleSignInButton from "../components/GoogleSignInButton";
+import AppleSignInButton from "../components/AppleSignInButton";
 
 export default function Register() {
   const { user, register } = useAuth();
@@ -165,6 +166,7 @@ export default function Register() {
           </form>
 
           <GoogleSignInButton />
+          <AppleSignInButton />
         </div>
 
         {/* Footer */}

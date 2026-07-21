@@ -1,7 +1,7 @@
 // Production server — serves the built SPA + API on port 3000.
 // Run `bun run build` first, then `bun run start`.
 import {
-  handleAuthRegister, handleAuthLogin, handleAuthLogout, handleAuthMe, handleAuthGoogle,
+  handleAuthRegister, handleAuthLogin, handleAuthLogout, handleAuthMe, handleAuthGoogle, handleAuthApple,
   handleTrackUpload, handleTrackImport, handleTrackList, handleTrackGet, handleTrackUpdate, handleTrackDelete,
   handleGenres, handleKeys,
   handleGenreSearch, handleGenreTree, handleGenreFusionSuggest, handleGenreSubgenres,
@@ -51,6 +51,13 @@ import {
 } from "./server/handlers";
 import { handleGetUserMatches } from "./server/matches";
 import { getOscWebSocketConfig } from "./server/osc";
+import {
+  handleAppleMusicToken,
+  handleApplePlaylistsList,
+  handleApplePlaylistImport,
+  handleApplePlaylistExport,
+  handleAppleTrackSearch,
+} from "./server/music-apple";
 
 const PORT = 3000;
 const HOST = "0.0.0.0";
@@ -77,6 +84,7 @@ async function handleApiCall(req: Request): Promise<Response | null> {
     if (path === "/api/auth/logout" && method === "POST") return handleAuthLogout(req);
     if (path === "/api/auth/me" && method === "GET") return handleAuthMe(req);
     if (path === "/api/auth/google" && method === "POST") return handleAuthGoogle(req);
+    if (path === "/api/auth/apple" && method === "POST") return handleAuthApple(req);
 
     // ─── Track Routes ───
     if (path === "/api/tracks/upload" && method === "POST") return handleTrackUpload(req);
@@ -359,6 +367,14 @@ async function handleApiCall(req: Request): Promise<Response | null> {
     // ─── Inspo Routes ───
     if (path === "/api/inspo/daily" && method === "GET") return handleInspoDaily(req);
     if (path === "/api/inspo/random" && method === "GET") return handleInspoRandom(req);
+
+    // ─── Apple Music Routes ───
+    if (path === "/api/music/apple-token" && method === "POST") return handleAppleMusicToken(req);
+    if (path === "/api/music/apple/playlists" && method === "GET") return handleApplePlaylistsList(req);
+    if (path === "/api/music/apple/playlists/export" && method === "POST") return handleApplePlaylistExport(req);
+    if (path === "/api/music/apple/search" && method === "GET") return handleAppleTrackSearch(req);
+    const applePlaylistImportMatch = path.match(/^\/api\/music\/apple\/playlists\/([^/]+)\/import$/);
+    if (applePlaylistImportMatch && method === "POST") return handleApplePlaylistImport(req);
 
     return json({ error: "Not found" }, 404);
   } catch (err) {

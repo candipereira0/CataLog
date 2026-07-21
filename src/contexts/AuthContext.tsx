@@ -15,6 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, display_name?: string) => Promise<void>;
   googleLogin: (credential: string) => Promise<void>;
+  appleLogin: (identityToken: string, user?: string, fullName?: string, email?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -70,8 +71,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getSyncClient().connect();
   }, []);
 
+  const appleLoginFn = useCallback(async (identityToken: string, user?: string, fullName?: string, email?: string) => {
+    const data = await api.appleLogin(identityToken, user, fullName, email);
+    setUser(data.user);
+    registerCurrentDevice().catch(() => {});
+    getSyncClient().connect();
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register: registerFn, googleLogin: googleLoginFn, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register: registerFn, googleLogin: googleLoginFn, appleLogin: appleLoginFn, logout }}>
       {children}
     </AuthContext.Provider>
   );
