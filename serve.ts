@@ -1,7 +1,7 @@
 // Production server — serves the built SPA + API on port 3000.
 // Run `bun run build` first, then `bun run start`.
 import {
-  handleAuthRegister, handleAuthLogin, handleAuthLogout, handleAuthMe,
+  handleAuthRegister, handleAuthLogin, handleAuthLogout, handleAuthMe, handleAuthGoogle,
   handleTrackUpload, handleTrackImport, handleTrackList, handleTrackGet, handleTrackUpdate, handleTrackDelete,
   handleGenres, handleKeys,
   handleGenreSearch, handleGenreTree, handleGenreFusionSuggest, handleGenreSubgenres,
@@ -76,6 +76,7 @@ async function handleApiCall(req: Request): Promise<Response | null> {
     if (path === "/api/auth/login" && method === "POST") return handleAuthLogin(req);
     if (path === "/api/auth/logout" && method === "POST") return handleAuthLogout(req);
     if (path === "/api/auth/me" && method === "GET") return handleAuthMe(req);
+    if (path === "/api/auth/google" && method === "POST") return handleAuthGoogle(req);
 
     // ─── Track Routes ───
     if (path === "/api/tracks/upload" && method === "POST") return handleTrackUpload(req);

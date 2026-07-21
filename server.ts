@@ -1,5 +1,5 @@
 import {
-  handleAuthRegister, handleAuthLogin, handleAuthLogout, handleAuthMe,
+  handleAuthRegister, handleAuthLogin, handleAuthLogout, handleAuthMe, handleAuthGoogle,
   handleTrackUpload, handleTrackImport, handleTrackList, handleTrackGet, handleTrackUpdate, handleTrackDelete,
   handleGenres, handleKeys,
   handleGenreSearch, handleGenreTree, handleGenreFusionSuggest, handleGenreSubgenres,
@@ -80,6 +80,7 @@ const server = Bun.serve({
       if (path === "/api/auth/login" && method === "POST") return handleAuthLogin(req);
       if (path === "/api/auth/logout" && method === "POST") return handleAuthLogout(req);
       if (path === "/api/auth/me" && method === "GET") return handleAuthMe(req);
+      if (path === "/api/auth/google" && method === "POST") return handleAuthGoogle(req);
 
       // ─── Track Routes ───
       if (path === "/api/tracks/upload" && method === "POST") return handleTrackUpload(req);

@@ -184,6 +184,89 @@ export async function handleAuthMe(req: Request): Promise<Response> {
   return json({ user });
 }
 
+// ─── Google Auth Handler ───
+
+export async function handleAuthGoogle(req: Request): Promise<Response> {
+  const body = (await parseBody(req)) as { credential?: string };
+  const { credential } = body;
+  if (!credential) return json({ error: "Missing credential" }, 400);
+
+  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  let email: string;
+  let displayName: string;
+
+  // Mock mode: when GOOGLE_CLIENT_ID is not set
+  if (!googleClientId && credential.startsWith("mock-")) {
+    const parts = credential.replace("mock-", "").split("|");
+    email = parts[0] || "google-demo@catalog.app";
+    displayName = parts[1] || email.split("@")[0];
+  } else if (googleClientId) {
+    // Real: verify the Google ID token
+    try {
+      const tokenInfoResp = await fetch(
+        "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential)
+      );
+      if (!tokenInfoResp.ok) {
+        return json({ error: "Invalid Google token" }, 401);
+      }
+      const tokenInfo = (await tokenInfoResp.json()) as {
+        email?: string;
+        email_verified?: string;
+        name?: string;
+        aud?: string;
+      };
+      if (tokenInfo.aud !== googleClientId) {
+        return json({ error: "Token audience mismatch" }, 401);
+      }
+      if (!tokenInfo.email || tokenInfo.email_verified !== "true") {
+        return json({ error: "Email not verified by Google" }, 401);
+      }
+      email = tokenInfo.email;
+      displayName = tokenInfo.name || email.split("@")[0];
+    } catch {
+      return json({ error: "Failed to verify Google token" }, 401);
+    }
+  } else {
+    return json({ error: "Google sign-in is not configured. Use demo mode." }, 400);
+  }
+
+  const db = getDb();
+  let row = await db.query(
+    "SELECT id, email, display_name, handle, tier FROM users WHERE email = ?"
+  ).get(email) as { id: number; email: string; display_name: string; handle: string | null; tier: string } | undefined;
+
+  if (!row) {
+    const randomPassword = crypto.randomUUID();
+    const passwordHash = Bun.password.hashSync(randomPassword);
+    let handle = displayName.toLowerCase().replace(/[^a-z0-9_-]/g, "").replace(/_{2,}/g, "_").replace(/^[_-]+|[_-]+$/g, "").slice(0, 30) || "user";
+    while (handle.length < 3) handle += "0";
+    let suffix = 0;
+    let candidate = handle;
+    while (await db.query("SELECT id FROM users WHERE handle = ?").get(candidate)) {
+      suffix++;
+      candidate = handle + suffix;
+    }
+    handle = candidate;
+    const result = await db.run(
+      "INSERT INTO users (email, password_hash, display_name, handle) VALUES (?, ?, ?, ?)",
+      [email, passwordHash, displayName, handle]
+    );
+    row = {
+      id: Number(result.lastInsertRowid),
+      email,
+      display_name: displayName,
+      handle,
+      tier: "free",
+    };
+  }
+
+  const sessionId = await createSession(row.id);
+  const user = { id: row.id, email: row.email, display_name: row.display_name, handle: row.handle, tier: row.tier };
+  const resp = json({ user });
+  resp.headers.set("Set-Cookie", "session=" + sessionId + "; HttpOnly; SameSite=Lax; Path=/; Max-Age=" + (60 * 60 * 24 * 7));
+  return resp;
+}
+
 // ─── Track Handlers ───
 
 export async function handleTrackUpload(req: Request): Promise<Response> {

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 
 export default function Register() {
   const { user, register } = useAuth();
@@ -162,6 +163,8 @@ export default function Register() {
               {submitting ? "Creating account..." : "Create account"}
             </button>
           </form>
+
+          <GoogleSignInButton />
         </div>
 
         {/* Footer */}

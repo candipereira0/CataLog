@@ -199,6 +199,12 @@ export const api = {
       body: { email, password },
     }),
 
+  googleLogin: (credential: string) =>
+    request<{ user: User }>("/auth/google", {
+      method: "POST",
+      body: { credential },
+    }),
+
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
 
   me: () => request<{ user: User | null }>("/auth/me"),
