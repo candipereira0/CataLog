@@ -300,12 +300,12 @@ export default function Playlists() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white sm:text-3xl">Playlists</h1>
           <p className="mt-1 text-sm text-gray-400">{playlists.length} playlist{playlists.length !== 1 ? "s" : ""}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             onClick={() => {
               setShowAIGenerate(true);
@@ -313,18 +313,18 @@ export default function Playlists() {
               setAiError(null);
               setAiResult(null);
             }}
-            className="btn-primary bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
+            className="btn-primary bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-sm min-h-[44px]"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            AI Generate
+            <span className="hidden sm:inline ml-2">AI Generate</span>
           </button>
-          <button onClick={() => setShowCreate(!showCreate)} className="btn-primary">
+          <button onClick={() => setShowCreate(!showCreate)} className="btn-primary text-sm min-h-[44px]">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            New Playlist
+            <span className="hidden sm:inline ml-2">New Playlist</span>
           </button>
         </div>
       </div>
@@ -333,33 +333,33 @@ export default function Playlists() {
       {showCreate && (
         <div className="card mb-6">
           <form onSubmit={handleCreate} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex-1">
+            <div className="flex-1 w-full">
               <label className="mb-1 block text-xs text-gray-500">Name</label>
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="My Playlist"
-                className="input-field"
+                className="input-field w-full"
                 autoFocus
                 required
               />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 w-full">
               <label className="mb-1 block text-xs text-gray-500">Description (optional)</label>
               <input
                 type="text"
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
                 placeholder="A great mix..."
-                className="input-field"
+                className="input-field w-full"
               />
             </div>
             <div className="flex gap-2">
-              <button type="submit" disabled={creating || !newName.trim()} className="btn-primary">
+              <button type="submit" disabled={creating || !newName.trim()} className="btn-primary min-h-[44px]">
                 {creating ? "Creating..." : "Create"}
               </button>
-              <button type="button" onClick={() => setShowCreate(false)} className="btn-secondary">
+              <button type="button" onClick={() => setShowCreate(false)} className="btn-secondary min-h-[44px]">
                 Cancel
               </button>
             </div>
@@ -578,19 +578,19 @@ export default function Playlists() {
 
       {/* Tip promotion — encourage DJs to share their tip page */}
       {!loading && playlists.length > 0 && user?.handle && (
-        <div className="card mb-6 border-violet-700/30 bg-violet-950/10 flex items-center justify-between">
+        <div className="card mb-6 border-violet-700/30 bg-violet-950/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-xl">💸</span>
+            <span className="text-xl flex-shrink-0">💸</span>
             <div>
               <p className="text-sm font-medium text-violet-300">Get tipped for your curation!</p>
-              <p className="text-xs text-gray-500">Share your tip page with fans: <span className="text-violet-400">catalog.app/tip/@{user.handle}</span></p>
+              <p className="text-xs text-gray-500">Share your tip page with fans: <span className="text-violet-400 break-all">catalog.app/tip/@{user.handle}</span></p>
             </div>
           </div>
           <a
             href={`/tip/@${user.handle}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary py-1.5 text-xs whitespace-nowrap"
+            className="btn-primary py-1.5 text-xs whitespace-nowrap flex-shrink-0"
           >
             View Tip Page
           </a>
@@ -620,34 +620,34 @@ export default function Playlists() {
 
       {/* Playlist list */}
       {!loading && playlists.length > 0 && (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {playlists.map((playlist) => (
-            <div key={playlist.id} className="card">
+            <div key={playlist.id} className="card flex flex-col">
               {/* Playlist row */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <button
                   onClick={() => toggleExpand(playlist)}
-                  className="flex-1 text-left"
+                  className="flex-1 text-left min-w-0"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
                     <svg
-                      className={`h-4 w-4 text-gray-500 transition-transform ${expandedId === playlist.id ? "rotate-90" : ""}`}
+                      className={`h-4 w-4 flex-shrink-0 text-gray-500 transition-transform ${expandedId === playlist.id ? "rotate-90" : ""}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                    <div>
-                      <h3 className="font-medium text-gray-200">{playlist.name}</h3>
+                    <div className="min-w-0">
+                      <h3 className="font-medium text-gray-200 truncate">{playlist.name}</h3>
                       {playlist.description && (
-                        <p className="text-xs text-gray-500">{playlist.description}</p>
+                        <p className="text-xs text-gray-500 truncate">{playlist.description}</p>
                       )}
                     </div>
                   </div>
                 </button>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">{trackCount(playlist)} track{trackCount(playlist) !== 1 ? "s" : ""}</span>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <span className="text-xs text-gray-500">{trackCount(playlist)}</span>
                   <span className="hidden text-xs text-gray-600 sm:inline">
                     {new Date(playlist.created_at).toLocaleDateString()}
                   </span>

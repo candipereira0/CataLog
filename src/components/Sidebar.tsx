@@ -203,15 +203,16 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       {/* Overlay for mobile */}
       {open && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/60 md:hidden"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 
       <aside
         className={`
-          fixed left-0 top-16 z-30 flex h-[calc(100dvh-4rem)] w-60 flex-col border-r border-gray-800 bg-gray-950 transition-transform duration-200
-          lg:static lg:translate-x-0
+          fixed left-0 top-16 z-30 flex h-[calc(100dvh-4rem)] w-64 flex-col border-r border-gray-800 bg-gray-950 transition-transform duration-200
+          md:static md:translate-x-0
           ${open ? "translate-x-0" : "-translate-x-full"}
         `}
       >
@@ -224,7 +225,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   end={item.path === "/"}
                   onClick={onClose}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    `flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors min-h-[44px] ${
                       isActive
                         ? "bg-violet-600/20 text-violet-300"
                         : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"

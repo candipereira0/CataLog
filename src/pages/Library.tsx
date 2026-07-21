@@ -471,7 +471,7 @@ export default function Library() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white sm:text-3xl">Library</h1>
           <p className="mt-1 text-sm text-gray-400">
@@ -492,25 +492,25 @@ export default function Library() {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Sync Folder button */}
           {!syncFolderName ? (
             <button
               onClick={handleSyncFolder}
               disabled={scanning}
-              className="btn-primary bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
+              className="btn-primary bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-sm min-h-[44px]"
             >
               {scanning ? (
                 <>
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Scanning...
+                  <span className="hidden sm:inline ml-2">Scanning...</span>
                 </>
               ) : (
                 <>
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                   </svg>
-                  Sync Folder
+                  <span className="hidden sm:inline ml-2">Sync Folder</span>
                 </>
               )}
             </button>
@@ -518,19 +518,19 @@ export default function Library() {
             <button
               onClick={() => handleReScan(false)}
               disabled={scanning}
-              className="btn-secondary"
+              className="btn-secondary text-sm min-h-[44px]"
             >
               {scanning ? (
                 <>
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
-                  Re-scanning...
+                  <span className="hidden sm:inline ml-2">Re-scanning...</span>
                 </>
               ) : (
                 <>
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Re-scan
+                  <span className="hidden sm:inline ml-2">Re-scan</span>
                 </>
               )}
             </button>
@@ -540,20 +540,20 @@ export default function Library() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="btn-secondary"
+            className="btn-secondary text-sm min-h-[44px]"
             title="Import individual files"
           >
             {uploading ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
-                Uploading...
+                <span className="hidden sm:inline ml-2">Uploading...</span>
               </>
             ) : (
               <>
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                Import Files
+                <span className="hidden sm:inline ml-2">Import</span>
               </>
             )}
           </button>
@@ -672,8 +672,8 @@ export default function Library() {
       )}
 
       {/* Filter bar */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="w-full sm:w-56">
+      <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="w-full sm:w-48 md:w-56">
           <GenrePicker
             selected={filters.genres || []}
             onChange={(genres) => { setFilters({ ...filters, genres: genres.length > 0 ? genres : undefined }); setPage(1); }}
@@ -684,7 +684,7 @@ export default function Library() {
         <select
           value={filters.key || ""}
           onChange={(e) => { setFilters({ ...filters, key: e.target.value || undefined }); setPage(1); }}
-          className="input-field w-auto py-1.5 text-sm"
+          className="input-field w-auto py-2 text-sm min-h-[44px]"
         >
           <option value="">All keys</option>
           {keys.map((k) => <option key={k} value={k}>{k}</option>)}
@@ -694,18 +694,18 @@ export default function Library() {
           placeholder="Min BPM"
           value={filters.bpm_min ?? ""}
           onChange={(e) => setFilters({ ...filters, bpm_min: e.target.value ? Number(e.target.value) : undefined })}
-          className="input-field w-24 py-1.5 text-sm"
+          className="input-field w-20 sm:w-24 py-2 text-sm min-h-[44px]"
         />
         <input
           type="number"
           placeholder="Max BPM"
           value={filters.bpm_max ?? ""}
           onChange={(e) => setFilters({ ...filters, bpm_max: e.target.value ? Number(e.target.value) : undefined })}
-          className="input-field w-24 py-1.5 text-sm"
+          className="input-field w-20 sm:w-24 py-2 text-sm min-h-[44px]"
         />
         <button
           onClick={() => { setFilters({}); setPage(1); setSort("created_at"); setOrder("desc"); }}
-          className="text-sm text-gray-400 hover:text-gray-200"
+          className="text-sm text-gray-400 hover:text-gray-200 py-2 min-h-[44px]"
         >
           Clear filters
         </button>
@@ -728,8 +728,8 @@ export default function Library() {
         </p>
       </div>
 
-      {/* Track table */}
-      <div className="card overflow-hidden !p-0">
+      {/* Track table — hidden on mobile */}
+      <div className="card overflow-hidden !p-0 hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
@@ -827,14 +827,14 @@ export default function Library() {
               <button
                 onClick={() => setPage(Math.max(1, page - 1))}
                 disabled={page === 1}
-                className="btn-secondary py-1.5 text-xs"
+                className="btn-secondary py-1.5 text-xs min-h-[44px] min-w-[44px]"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage(page + 1)}
                 disabled={page * 50 >= total}
-                className="btn-secondary py-1.5 text-xs"
+                className="btn-secondary py-1.5 text-xs min-h-[44px] min-w-[44px]"
               >
                 Next
               </button>
@@ -843,22 +843,99 @@ export default function Library() {
         )}
       </div>
 
+      {/* Mobile card stack — visible only on mobile */}
+      <div className="md:hidden space-y-2">
+        {loading ? (
+          <div className="card py-12 text-center text-gray-500">Loading...</div>
+        ) : tracks.length === 0 ? (
+          <div className="card py-12 text-center text-gray-500">
+            No tracks found. Sync a music folder or import files to get started!
+          </div>
+        ) : (
+          <>
+            {tracks.map((track, i) => (
+              <div
+                key={track.id}
+                onClick={() => openDetail(track)}
+                className={`card cursor-pointer transition-colors hover:bg-gray-800/50 ${
+                  selectedTrack?.id === track.id ? "ring-1 ring-violet-500 bg-violet-600/10" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-600 flex-shrink-0">#{(page - 1) * 50 + i + 1}</span>
+                      <p className="font-medium text-gray-200 truncate">{track.title || track.filename}</p>
+                    </div>
+                    <p className="text-sm text-gray-400 mt-0.5">{track.artist || "—"}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {track.bpm && (
+                        <span className="inline-flex items-center gap-1 rounded bg-gray-800 px-1.5 py-0.5 text-xs text-gray-400">
+                          {Math.round(track.bpm)} BPM
+                        </span>
+                      )}
+                      {track.musical_key && (
+                        <span className="inline-block rounded bg-violet-600/20 px-1.5 py-0.5 text-xs font-medium text-violet-300">
+                          {track.musical_key}
+                        </span>
+                      )}
+                      {track.genre && (
+                        <span className="inline-block rounded bg-violet-600/20 px-1.5 py-0.5 text-xs text-violet-300">{track.genre}</span>
+                      )}
+                      <span className="text-xs text-gray-500">{formatDuration(track.duration_ms)}</span>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <StarRating rating={track.rating} onChange={(r) => handleRating(track.id, r)} />
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Mobile pagination */}
+            {total > 50 && (
+              <div className="flex items-center justify-between pt-3 pb-1">
+                <span className="text-sm text-gray-500">
+                  Page {page} of {Math.ceil(total / 50)}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className="btn-secondary py-2 px-4 text-sm min-h-[44px]"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setPage(page + 1)}
+                    disabled={page * 50 >= total}
+                    className="btn-secondary py-2 px-4 text-sm min-h-[44px]"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Detail Modal */}
       {selectedTrack && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSelectedTrack(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4" onClick={() => setSelectedTrack(null)}>
           <div className="absolute inset-0 bg-black/70" />
-          <div className="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="relative z-10 w-full h-dvh md:h-auto md:max-h-[85vh] md:max-w-2xl overflow-y-auto md:rounded-xl border-0 md:border border-gray-700 bg-gray-900 p-4 md:p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             {/* Close button */}
             <button
               onClick={() => setSelectedTrack(null)}
-              className="absolute right-4 top-4 rounded-lg p-1 text-gray-500 hover:bg-gray-800 hover:text-gray-300"
+              className="absolute right-4 top-4 rounded-lg p-2 text-gray-500 hover:bg-gray-800 hover:text-gray-300 min-h-[44px] min-w-[44px] flex items-center justify-center z-10"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
 
-            <h2 className="mb-6 text-xl font-bold text-white">Track Details</h2>
+            <h2 className="mb-6 text-xl font-bold text-white pr-10">Track Details</h2>
 
             {/* Source file path */}
             {selectedTrack.filepath && !selectedTrack.filepath.startsWith("/") && !selectedTrack.filepath.includes("data/uploads") && (

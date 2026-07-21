@@ -131,7 +131,7 @@ export default function Player() {
         />
       </div>
 
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3">
         {/* Track info */}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-white">{currentTrack.title}</p>
@@ -139,7 +139,7 @@ export default function Player() {
         </div>
 
         {/* Waveform */}
-        <div className="hidden h-10 w-48 flex-shrink-0 sm:block">
+        <div className="hidden h-8 sm:h-10 w-32 sm:w-48 flex-shrink-0 sm:block">
           <Waveform isPlaying={isPlaying} />
         </div>
 
@@ -149,14 +149,14 @@ export default function Player() {
         </span>
 
         {/* Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {/* Voice commands toggle */}
           <VoiceIndicator variant="icon" className="p-1" />
 
           {/* Play/Pause */}
           <button
             onClick={togglePlay}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-600 text-white transition-colors hover:bg-violet-500"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-600 text-white transition-colors hover:bg-violet-500 min-w-[44px] min-h-[44px]"
             aria-label={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? (
@@ -173,7 +173,7 @@ export default function Player() {
           {/* Close */}
           <button
             onClick={closePlayer}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300 min-w-[44px] min-h-[44px]"
             aria-label="Close player"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

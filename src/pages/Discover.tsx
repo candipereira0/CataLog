@@ -288,14 +288,14 @@ export default function Discover() {
   }, [selectedArtist, openPlayer]);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl px-0 sm:px-0">
       <h1 className="mb-2 text-2xl font-bold text-white">Discovery Mode</h1>
-      <p className="mb-6 text-gray-400">
+      <p className="mb-6 text-gray-400 text-sm sm:text-base">
         Explore artist similarity maps — click any node to learn more and preview
       </p>
 
       {/* Search bar */}
-      <div className="mb-6 flex gap-3">
+      <div className="mb-6 flex gap-2 sm:gap-3">
         <div className="relative flex-1">
           <svg
             className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500"
@@ -309,14 +309,14 @@ export default function Discover() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            placeholder="Search an artist (e.g., Daft Punk, Deadmau5, Burial...)"
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            placeholder="Search an artist (e.g., Daft Punk, Deadmau5...)"
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
           />
         </div>
         <button
           onClick={handleSearch}
           disabled={loading || !query.trim()}
-          className="rounded-lg bg-violet-600 px-6 py-3 font-medium text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
+          className="rounded-lg bg-violet-600 px-4 sm:px-6 py-3 font-medium text-white transition-colors hover:bg-violet-500 disabled:opacity-50 text-sm min-h-[44px]"
         >
           {loading ? (
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -363,7 +363,7 @@ export default function Discover() {
             </div>
 
             {/* Side panel — artist info */}
-            <div className="border-t border-gray-800 p-4 lg:w-72 lg:border-l lg:border-t-0">
+            <div className="border-t border-gray-800 p-4 lg:w-72 lg:border-l lg:border-t-0 lg:flex-shrink-0">
               {selectedArtist ? (
                 <div>
                   <h3 className="text-lg font-bold text-white">{selectedArtist.name}</h3>
@@ -415,12 +415,12 @@ export default function Discover() {
 
       {/* Empty state */}
       {!result && !loading && !error && (
-        <div className="rounded-xl border border-dashed border-gray-800 p-16 text-center">
-          <svg className="mx-auto mb-4 h-16 w-16 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="rounded-xl border border-dashed border-gray-800 p-8 sm:p-16 text-center">
+          <svg className="mx-auto mb-4 h-12 sm:h-16 w-12 sm:w-16 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <p className="text-lg text-gray-500">
+          <p className="text-base sm:text-lg text-gray-500">
             Search for an artist to explore their musical universe
           </p>
           <p className="mt-1 text-sm text-gray-600">

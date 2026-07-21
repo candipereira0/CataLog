@@ -193,7 +193,7 @@ function ControlBar({
   };
 
   return (
-    <div className="pointer-events-auto flex items-center gap-3 rounded-xl bg-gray-950/80 px-4 py-2.5 backdrop-blur-md border border-gray-800/50">
+    <div className="pointer-events-auto flex items-center gap-2 sm:gap-3 rounded-xl bg-gray-950/80 px-3 sm:px-4 py-2.5 backdrop-blur-md border border-gray-800/50 max-w-[95vw] overflow-x-auto">
       {/* Play/Pause */}
       <button
         onClick={onTogglePlay}
@@ -594,7 +594,7 @@ export default function GigNight() {
             Now Playing
           </p>
           <h1
-            className="max-w-2xl text-4xl font-bold text-white drop-shadow-lg sm:text-5xl lg:text-6xl"
+            className="max-w-2xl text-2xl font-bold text-white drop-shadow-lg sm:text-5xl lg:text-6xl px-4 text-center"
             style={{
               textShadow: showGlow
                 ? "0 0 40px rgba(124,58,237,0.5), 0 0 80px rgba(124,58,237,0.25)"
@@ -603,7 +603,7 @@ export default function GigNight() {
           >
             {currentTrack.title}
           </h1>
-          <p className="mt-3 text-xl font-medium text-gray-300 sm:text-2xl">
+          <p className="mt-3 text-lg font-medium text-gray-300 sm:text-2xl">
             {currentTrack.artist}
           </p>
 

@@ -226,7 +226,7 @@ export default function Settings() {
                 }}
                 onBlur={() => checkHandle(profileHandle)}
                 placeholder="your-handle"
-                className="input-field max-w-xs"
+                className="input-field w-full sm:max-w-xs"
                 maxLength={30}
                 pattern="[a-zA-Z0-9_-]{3,30}"
               />
@@ -246,7 +246,7 @@ export default function Settings() {
               value={profileName}
               onChange={(e) => setProfileName(e.target.value)}
               placeholder="Your display name"
-              className="input-field max-w-xs"
+              className="input-field w-full sm:max-w-xs"
             />
           </div>
 
@@ -256,7 +256,7 @@ export default function Settings() {
               value={profileBio}
               onChange={(e) => setProfileBio(e.target.value)}
               placeholder="Tell others about yourself..."
-              className="input-field max-w-md min-h-[80px] resize-y"
+              className="input-field w-full sm:max-w-md min-h-[80px] resize-y"
               maxLength={500}
             />
             <p className="mt-1 text-xs text-gray-600">{profileBio.length}/500</p>
@@ -269,7 +269,7 @@ export default function Settings() {
               value={profileCity}
               onChange={(e) => setProfileCity(e.target.value)}
               placeholder="Your city (for DJ matching)"
-              className="input-field max-w-xs"
+              className="input-field w-full sm:max-w-xs"
               maxLength={100}
             />
           </div>

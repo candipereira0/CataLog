@@ -287,7 +287,7 @@ export default function Navbar({ onMenuToggle, onTrackSelect }: NavbarProps) {
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="flex items-center gap-2 rounded-lg p-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+              className="flex items-center gap-2 rounded-lg p-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors min-h-[44px]"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-600 text-sm font-semibold text-white">
                 {user.display_name.charAt(0).toUpperCase()}

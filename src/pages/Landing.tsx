@@ -88,12 +88,12 @@ export default function Landing() {
   return (
     <div className="min-h-dvh bg-gray-950 text-gray-100">
       {/* Nav */}
-      <nav className="flex items-center justify-between px-6 py-4 border-b border-gray-800/50">
+      <nav className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-800/50">
         <Link to="/" className="text-xl font-bold tracking-tight">
           <span className="text-violet-400">Cata</span>
           <span className="text-white">Log</span>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <Link
             to="/login"
             className="text-sm text-gray-400 hover:text-white transition-colors"
@@ -102,24 +102,24 @@ export default function Landing() {
           </Link>
           <Link
             to="/register"
-            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 transition-colors"
+            className="rounded-lg bg-violet-600 px-3 py-2 sm:px-4 sm:py-2 text-sm font-semibold text-white hover:bg-violet-500 transition-colors"
           >
-            Get Started Free
+            Get Started
           </Link>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="relative overflow-hidden px-6 pb-20 pt-16 sm:px-8 sm:pb-28 sm:pt-24">
+      <section className="relative overflow-hidden px-4 sm:px-8 pb-16 sm:pb-28 pt-12 sm:pt-24">
         <div className="absolute inset-0 bg-gradient-to-b from-violet-900/20 via-transparent to-transparent pointer-events-none" />
         <div className="relative mx-auto max-w-4xl text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
             <span className="text-white">Your music library,</span>{" "}
             <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
               organized by AI
             </span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-400 sm:text-xl">
+          <p className="mx-auto mt-6 max-w-2xl text-base text-gray-400 sm:text-xl">
             CataLog uses AI to automatically tag your tracks with hyper-specific
             metadata — genres, subgenres, BPM, key, mood, and more. Generate
             smart playlists, discover new music, and export to any DJ software.
@@ -127,13 +127,13 @@ export default function Landing() {
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
               to="/register"
-              className="rounded-lg bg-violet-600 px-8 py-3.5 text-base font-semibold text-white hover:bg-violet-500 transition-colors shadow-lg shadow-violet-600/30"
+              className="rounded-lg bg-violet-600 px-6 sm:px-8 py-3 sm:py-3.5 text-base font-semibold text-white hover:bg-violet-500 transition-colors shadow-lg shadow-violet-600/30 w-full sm:w-auto text-center"
             >
               Get Started Free
             </Link>
             <a
               href="#features"
-              className="rounded-lg border border-gray-700 px-8 py-3.5 text-base font-medium text-gray-300 hover:bg-gray-800 transition-colors"
+              className="rounded-lg border border-gray-700 px-6 sm:px-8 py-3 sm:py-3.5 text-base font-medium text-gray-300 hover:bg-gray-800 transition-colors w-full sm:w-auto text-center"
             >
               See Features
             </a>

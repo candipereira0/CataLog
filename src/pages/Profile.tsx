@@ -189,15 +189,15 @@ export default function Profile() {
         {/* Header */}
         <div className="card mb-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-violet-600 text-3xl font-bold text-white">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+              <div className="flex h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 items-center justify-center rounded-full bg-violet-600 text-2xl sm:text-3xl font-bold text-white self-center sm:self-auto">
                 {profile.display_name.charAt(0).toUpperCase()}
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white sm:text-3xl">{profile.display_name}</h1>
-                <p className="text-lg text-violet-400">@{profile.handle}</p>
+              <div className="text-center sm:text-left">
+                <h1 className="text-xl sm:text-2xl font-bold text-white">{profile.display_name}</h1>
+                <p className="text-base sm:text-lg text-violet-400">@{profile.handle}</p>
                 {profile.bio && <p className="mt-2 text-sm text-gray-400">{profile.bio}</p>}
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-2">
                   <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${tier.cls}`}>
                     {tier.label}
                   </span>
@@ -205,31 +205,33 @@ export default function Profile() {
                 </div>
               </div>
             </div>
-            {currentUser && !isOwnProfile && (
-              <button
-                onClick={handleFollow}
-                disabled={followLoading}
-                className={`btn-primary whitespace-nowrap ${isFollowing ? "bg-gray-700 hover:bg-gray-600" : ""}`}
-              >
-                {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
-              </button>
-            )}
-            {currentUser && !isOwnProfile && profile.handle && (
-              <a
-                href={`/tip/@${profile.handle}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-secondary whitespace-nowrap text-xs flex items-center gap-1"
-              >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Tip DJ
-              </a>
-            )}
-            {isOwnProfile && (
-              <Link to="/settings" className="btn-secondary text-xs whitespace-nowrap">Edit Profile</Link>
-            )}
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+              {currentUser && !isOwnProfile && (
+                <button
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                  className={`btn-primary whitespace-nowrap min-h-[44px] ${isFollowing ? "bg-gray-700 hover:bg-gray-600" : ""}`}
+                >
+                  {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
+                </button>
+              )}
+              {currentUser && !isOwnProfile && profile.handle && (
+                <a
+                  href={`/tip/@${profile.handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary whitespace-nowrap text-xs flex items-center gap-1 min-h-[44px]"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Tip DJ
+                </a>
+              )}
+              {isOwnProfile && (
+                <Link to="/settings" className="btn-secondary text-xs whitespace-nowrap min-h-[44px]">Edit Profile</Link>
+              )}
+            </div>
           </div>
         </div>
 
