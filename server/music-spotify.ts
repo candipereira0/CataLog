@@ -193,7 +193,7 @@ function mockSearchSpotify(query: string, _type: "isrc" | "track"): SpotifyTrack
 
 // GET /api/music/spotify/auth-url
 export async function handleSpotifyAuthUrl(req: Request): Promise<Response> {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth instanceof Response) return auth;
 
   if (IS_MOCK) {
@@ -328,7 +328,7 @@ export async function handleSpotifyCallback(req: Request): Promise<Response> {
 
 // GET /api/music/spotify/status
 export async function handleSpotifyStatus(req: Request): Promise<Response> {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 
@@ -343,7 +343,7 @@ export async function handleSpotifyStatus(req: Request): Promise<Response> {
 
 // POST /api/music/spotify/disconnect
 export async function handleSpotifyDisconnect(req: Request): Promise<Response> {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 
@@ -353,7 +353,7 @@ export async function handleSpotifyDisconnect(req: Request): Promise<Response> {
 
 // GET /api/music/spotify/playlists
 export async function handleSpotifyPlaylistsList(req: Request): Promise<Response> {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 
@@ -395,7 +395,7 @@ export async function handleSpotifyPlaylistsList(req: Request): Promise<Response
 
 // POST /api/music/spotify/playlists/:id/import
 export async function handleSpotifyPlaylistImport(req: Request): Promise<Response> {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 
@@ -517,7 +517,7 @@ async function importTracksToCatalog(
 
 // POST /api/music/spotify/playlists/export
 export async function handleSpotifyPlaylistExport(req: Request): Promise<Response> {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 
@@ -642,7 +642,7 @@ export async function handleSpotifyPlaylistExport(req: Request): Promise<Respons
 
 // GET /api/music/spotify/search?q=xxx
 export async function handleSpotifyTrackSearch(req: Request): Promise<Response> {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 
