@@ -5,13 +5,14 @@ import { THEME_PRESETS } from "../lib/themes";
 import { timeAgo } from "../lib/timeago";
 import { api, type TipLink, type ArtistLink, type DeviceInfo } from "../lib/api";
 
+const STRIPE_PRO_ANNUAL = "https://buy.stripe.com/3cIeVcaDZcrSdVd31O5Vu00";
+const STRIPE_LIFETIME = "https://buy.stripe.com/aFa7sKfYjcrS18r31O5Vu01";
+
 export default function Settings() {
   const { user } = useAuth();
   const { mode, preset, setMode, setPreset, toggleMode, resetToDefault } = useTheme();
   const [driveMsg, setDriveMsg] = useState<string | null>(null);
   const [dropboxMsg, setDropboxMsg] = useState<string | null>(null);
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   // Profile editing state
   const [profileHandle, setProfileHandle] = useState(user?.handle || "");
@@ -92,19 +93,6 @@ export default function Settings() {
       setDeviceMsg(err instanceof Error ? err.message : "Push test failed");
     } finally {
       setPushingPlaylist(null);
-    }
-  }, []);
-
-  const handleCheckout = useCallback(async (productType: string) => {
-    setCheckoutLoading(productType);
-    setCheckoutError(null);
-    try {
-      const result = await api.createCheckout(productType);
-      // Redirect to checkout (mock or real Stripe)
-      window.location.href = result.url;
-    } catch (err) {
-      setCheckoutError(err instanceof Error ? err.message : "Payment failed. Please try again.");
-      setCheckoutLoading(null);
     }
   }, []);
 
@@ -345,36 +333,19 @@ export default function Settings() {
               Upgrade to unlock unlimited tracks, AI playlist generation, cloud sync, and more.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
-              {/* Pro Monthly */}
+              {/* Pro Annual */}
               <div className="rounded-lg border border-violet-700/50 bg-violet-950/20 p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-white">Pro Monthly</p>
-                    <p className="text-sm text-gray-400">$12/month</p>
-                  </div>
-                  <button
-                    onClick={() => handleCheckout("pro_monthly")}
-                    disabled={checkoutLoading !== null}
-                    className="btn-primary py-1.5 text-xs"
-                  >
-                    {checkoutLoading === "pro_monthly" ? "Redirecting..." : "Upgrade"}
-                  </button>
-                </div>
-              </div>
-              {/* Pro Yearly */}
-              <div className="rounded-lg border border-violet-700/50 bg-violet-950/20 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-white">Pro Yearly</p>
+                    <p className="font-semibold text-white">Pro Annual</p>
                     <p className="text-sm text-gray-400">$99/year (save 31%)</p>
                   </div>
-                  <button
-                    onClick={() => handleCheckout("pro_yearly")}
-                    disabled={checkoutLoading !== null}
-                    className="btn-primary py-1.5 text-xs"
+                  <a
+                    href={STRIPE_PRO_ANNUAL}
+                    className="btn-primary py-1.5 text-xs inline-block"
                   >
-                    {checkoutLoading === "pro_yearly" ? "Redirecting..." : "Upgrade"}
-                  </button>
+                    Upgrade
+                  </a>
                 </div>
               </div>
               {/* Lifetime */}
@@ -384,13 +355,12 @@ export default function Settings() {
                     <p className="font-semibold text-amber-400">Lifetime License</p>
                     <p className="text-sm text-gray-400">$299 one-time — all features, forever</p>
                   </div>
-                  <button
-                    onClick={() => handleCheckout("lifetime")}
-                    disabled={checkoutLoading !== null}
-                    className="rounded-lg bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 transition-colors"
+                  <a
+                    href={STRIPE_LIFETIME}
+                    className="rounded-lg bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 transition-colors inline-block"
                   >
-                    {checkoutLoading === "lifetime" ? "Redirecting..." : "Buy Lifetime"}
-                  </button>
+                    Buy Lifetime
+                  </a>
                 </div>
               </div>
             </div>
@@ -403,13 +373,12 @@ export default function Settings() {
               You're on the <span className="text-violet-400 font-semibold">Pro</span> plan.
               Want lifetime access instead?
             </p>
-            <button
-              onClick={() => handleCheckout("lifetime")}
-              disabled={checkoutLoading !== null}
-              className="mt-3 rounded-lg bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 transition-colors"
+            <a
+              href={STRIPE_LIFETIME}
+              className="mt-3 inline-block rounded-lg bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 transition-colors"
             >
-              {checkoutLoading === "lifetime" ? "Redirecting..." : "Upgrade to Lifetime ($299)"}
-            </button>
+              Upgrade to Lifetime ($299)
+            </a>
           </div>
         )}
 
@@ -421,17 +390,6 @@ export default function Settings() {
           </div>
         )}
 
-        {checkoutError && (
-          <div className="mt-4 rounded-lg border border-red-800 bg-red-900/20 p-3">
-            <p className="text-sm text-red-400">{checkoutError}</p>
-            <button
-              onClick={() => setCheckoutError(null)}
-              className="mt-1 text-xs text-red-500 hover:text-red-400"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Cloud Storage Integrations */}

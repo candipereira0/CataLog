@@ -10,11 +10,11 @@ interface PlaylistExport {
 export function generateM3U(playlist: PlaylistExport): string {
   const lines = ["#EXTM3U"];
   for (const track of playlist.tracks) {
-    const duration = track.duration_ms ? Math.round(track.duration_ms / 1000) : -1;
-    const artist = track.artist || "Unknown Artist";
-    const title = track.title || track.filename;
-    lines.push(`#EXTINF:${duration},${artist} - ${title}`);
-    lines.push(track.filepath);
+    const duration = track.duration ? Math.round(track.duration) : -1;
+      const artist = track.artist || "Unknown Artist";
+      const title = track.title || track.filename;
+      lines.push(`#EXTINF:${duration},${artist} - ${title}`);
+      lines.push(track.file_path);
   }
   return lines.join("\n");
 }

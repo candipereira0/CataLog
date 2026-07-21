@@ -1,22 +1,17 @@
 // Postgres database adapter for Vercel production.
 // Mirrors the SQLite schema and query interface from db.ts.
-import { Pool, type PoolClient } from "pg";
+import { neon } from "@neondatabase/serverless";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error("DATABASE_URL is required for PG adapter");
 
-let pool: Pool | null = null;
+let sqlFn: any = null;
 
-function getPool(): Pool {
-  if (!pool) {
-    pool = new Pool({
-      connectionString: DATABASE_URL,
-      max: 5,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000,
-    });
+function getSql(): any {
+  if (!sqlFn) {
+    sqlFn = neon(DATABASE_URL!);
   }
-  return pool;
+  return sqlFn;
 }
 
 // Simple ? → $N conversion
@@ -70,23 +65,24 @@ export interface TrackRow {
 
 // ─── PG Query wrapper (mimics SQLite .query().get()/.all()) ────────────
 class PgQuery {
-  constructor(private p: Pool, private sql: string) {}
+  private sqlFn: any;
+  constructor(sqlFn: any, private querySql: string) { this.sqlFn = sqlFn; }
   async get(...params: any[]): Promise<any> {
-    const r = await this.p.query(pgSql(this.sql), params);
+    const r = await this.sqlFn.query(pgSql(this.querySql), params);
     return r.rows[0] ?? null;
   }
   async all(...params: any[]): Promise<any[]> {
-    const r = await this.p.query(pgSql(this.sql), params);
+    const r = await this.sqlFn.query(pgSql(this.querySql), params);
     return r.rows;
   }
 }
 
 // PG Database object (returned by getDb, mimics SQLite interface)
 class PgDb {
-  constructor(private p: Pool) {}
-  query(sql: string) { return new PgQuery(this.p, sql); }
+  constructor(sqlFn: any) { this.sqlFn = sqlFn; }
+  query(sql: string) { return new PgQuery(this.sqlFn, sql); }
   async run(sql: string, params: any[] = []): Promise<{ lastInsertRowid: number }> {
-    const result = await this.p.query(pgSql(sql), params);
+    const result = await this.sqlFn.query(pgSql(sql), params);
     // If it was an INSERT, try to get the returned id
     const upperSql = sql.trim().toUpperCase();
     if (upperSql.startsWith("INSERT")) {
@@ -102,14 +98,14 @@ class PgDb {
   async exec(sql: string): Promise<void> {
     const statements = sql.split(";").map(s => s.trim()).filter(Boolean);
     for (const stmt of statements) {
-      await this.p.query(stmt);
+      await this.sqlFn.query(stmt);
     }
   }
   // Used for SELECT last_insert_rowid() emulation
   async getLastInsertId(table: string): Promise<number> {
     // PG doesn't have last_insert_rowid; use currval
     // But we use RETURNING in run() instead, so this is a fallback
-    const r = await this.p.query(`SELECT last_value FROM ${table}_id_seq`);
+    const r = await this.sqlFn.query(`SELECT last_value FROM ${table}_id_seq`);
     return r.rows[0]?.last_value ?? 0;
   }
 }
@@ -118,7 +114,7 @@ let dbInstance: PgDb | null = null;
 
 export function getDb(): PgDb {
   if (!dbInstance) {
-    dbInstance = new PgDb(getPool());
+    dbInstance = new PgDb(getSql());
   }
   return dbInstance;
 }
@@ -130,7 +126,7 @@ function uuid() { return crypto.randomUUID(); }
 
 // ─── Migration ─────────────────────────────────────────────────────────
 export async function migrate(): Promise<void> {
-  const p = getPool();
+  const p = getSql();
   await p.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,

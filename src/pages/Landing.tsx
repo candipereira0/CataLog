@@ -1,5 +1,8 @@
 import { Link } from "react-router-dom";
 
+const STRIPE_PRO_ANNUAL = "https://buy.stripe.com/3cIeVcaDZcrSdVd31O5Vu00";
+const STRIPE_LIFETIME = "https://buy.stripe.com/aFa7sKfYjcrS18r31O5Vu01";
+
 function PricingCard({
   name,
   price,
@@ -17,9 +20,18 @@ function PricingCard({
   cta: string;
   highlighted?: boolean;
 }) {
-  const handleClick = () => {
-    window.location.href = `/register?plan=${productType}`;
-  };
+  const href =
+    productType === "pro_monthly" || productType === "pro_yearly"
+      ? STRIPE_PRO_ANNUAL
+      : productType === "lifetime"
+      ? STRIPE_LIFETIME
+      : null;
+
+  const btnClass = `mt-8 w-full rounded-lg px-4 py-3 text-sm font-semibold transition-colors inline-block text-center ${
+    highlighted
+      ? "bg-violet-600 text-white hover:bg-violet-500"
+      : "bg-gray-800 text-gray-200 hover:bg-gray-700 border border-gray-700"
+  }`;
 
   return (
     <div
@@ -59,16 +71,15 @@ function PricingCard({
           </li>
         ))}
       </ul>
-      <button
-        onClick={handleClick}
-        className={`mt-8 w-full rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${
-          highlighted
-            ? "bg-violet-600 text-white hover:bg-violet-500"
-            : "bg-gray-800 text-gray-200 hover:bg-gray-700 border border-gray-700"
-        }`}
-      >
-        {cta}
-      </button>
+      {href ? (
+        <a href={href} className={btnClass}>
+          {cta}
+        </a>
+      ) : (
+        <Link to={`/register?plan=${productType}`} className={btnClass}>
+          {cta}
+        </Link>
+      )}
     </div>
   );
 }
