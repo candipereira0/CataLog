@@ -66,6 +66,16 @@ import {
   handleSpotifyPlaylistExport,
   handleSpotifyTrackSearch,
 } from "./server/music-spotify";
+import {
+  handleYouTubeAuthUrl,
+  handleYouTubeCallback,
+  handleYouTubeStatus,
+  handleYouTubeDisconnect,
+  handleYouTubePlaylistsList,
+  handleYouTubePlaylistExport,
+  handleYouTubeLikedTracks,
+  handleYouTubeLikedImport,
+} from "./server/music-youtube";
 
 const PORT = 3001;
 
@@ -400,6 +410,16 @@ const server = Bun.serve({
       if (path === "/api/music/spotify/search" && method === "GET") return handleSpotifyTrackSearch(req);
       const spotifyPlaylistImportMatch = path.match(/^\/api\/music\/spotify\/playlists\/([^/]+)\/import$/);
       if (spotifyPlaylistImportMatch && method === "POST") return handleSpotifyPlaylistImport(req);
+
+      // ─── YouTube Routes ───
+      if (path === "/api/music/youtube/auth-url" && method === "GET") return handleYouTubeAuthUrl(req);
+      if (path === "/api/music/youtube/callback" && method === "GET") return handleYouTubeCallback(req);
+      if (path === "/api/music/youtube/status" && method === "GET") return handleYouTubeStatus(req);
+      if (path === "/api/music/youtube/disconnect" && method === "POST") return handleYouTubeDisconnect(req);
+      if (path === "/api/music/youtube/playlists" && method === "GET") return handleYouTubePlaylistsList(req);
+      if (path === "/api/music/youtube/playlists/export" && method === "POST") return handleYouTubePlaylistExport(req);
+      if (path === "/api/music/youtube/liked" && method === "GET") return handleYouTubeLikedTracks(req);
+      if (path === "/api/music/youtube/liked/import" && method === "POST") return handleYouTubeLikedImport(req);
 
       return json({ error: "Not found" }, 404);
     } catch (err) {
