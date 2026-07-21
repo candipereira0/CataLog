@@ -46,6 +46,7 @@ import {
   handleCreateGig, handleGetVenueGigs, handleUserGigs, handleUpdateGig, handlePushSetlist, handleDeleteGig,
   handleGetUserGenres, handleUpdateMyGenres, handleSearchUsersByGenres,
   handleInspoDaily, handleInspoRandom,
+  handleGenreDiscover, handleTrackCrossReference,
   json,
 } from "./server/handlers";
 import { handleGetUserMatches } from "./server/matches";
@@ -193,6 +194,10 @@ async function handleApiCall(req: Request): Promise<Response | null> {
 
     // ─── Discover Routes ───
     if (path === "/api/discover/artists" && method === "POST") return handleDiscoverArtists(req);
+
+    // ─── Genre Discovery & Cross-Reference ───
+    if (path === "/api/genres/discover" && method === "GET") return handleGenreDiscover(req);
+    if (path === "/api/tracks/cross-reference" && method === "POST") return handleTrackCrossReference(req);
 
     // ─── Queue Routes ───
     if (path === "/api/queue/generate" && method === "POST") return handleQueueGenerate(req);

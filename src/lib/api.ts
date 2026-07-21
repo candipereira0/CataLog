@@ -429,6 +429,22 @@ export const api = {
       body: { artist },
     }),
 
+  // Genre Discovery & Cross-Reference
+  discoverGenres: () =>
+    request<{ discovered: Array<{ name: string; parent: string | null; source: string; confidence: string; description: string }>; count: number; message: string }>("/genres/discover"),
+
+  crossReferenceTrack: (title: string, artist: string) =>
+    request<{
+      track: { title: string; artist: string };
+      spotify: { platform: string; found: boolean; genres: string[]; tags: string[]; url: string | null } | null;
+      youtube: { platform: string; found: boolean; genres: string[]; tags: string[]; url: string | null } | null;
+      consensus_genres: string[];
+      suggested_genres: string[];
+    }>("/tracks/cross-reference", {
+      method: "POST",
+      body: { title, artist },
+    }),
+
   // Payments
   createCheckout: (productType: string) =>
     request<{ url: string; mock?: boolean }>("/payments/create-checkout", {

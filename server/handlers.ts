@@ -57,6 +57,7 @@ import { syncLights, connectBridge, getStatus as getHueStatus } from "./hue";
 import { getOscClientCount } from "./osc";
 import { addClient, removeClient, broadcastToUser, getPollingEvents, getClientCount, type SyncEvent } from "./sse-manager";
 import { getAllGenres, searchGenres, getGenreHierarchy, getSubgenres, suggestFusionGenres } from "./genres";
+import { discoverNewGenres, crossReferenceTrack, type DiscoveredGenre, type CrossReferenceResult } from "./genre-crawler";
 import { generateDailyChallenge, generateRandomChallenge } from "./inspo";
 import { existsSync, mkdirSync } from "node:fs";
 import { join, basename } from "node:path";
@@ -2814,4 +2815,27 @@ export function handleInspoDaily(req: Request): Response {
 export function handleInspoRandom(req: Request): Response {
   const challenge = generateRandomChallenge();
   return json({ challenge });
+}
+
+// ─── Genre Discovery & Cross-Reference Handlers ───
+
+export async function handleGenreDiscover(req: Request): Promise<Response> {
+  const discovered = await discoverNewGenres();
+  return json({
+    discovered,
+    count: discovered.length,
+    message: discovered.length > 0
+      ? `Found ${discovered.length} new genre(s) not in the existing hierarchy.`
+      : "No new genres discovered. Existing hierarchy is comprehensive.",
+  });
+}
+
+export async function handleTrackCrossReference(req: Request): Promise<Response> {
+  const body = await parseBody(req) as { title?: string; artist?: string };
+  if (!body.title?.trim() || !body.artist?.trim()) {
+    return json({ error: "title and artist are required" }, 400);
+  }
+
+  const result = await crossReferenceTrack(body.title.trim(), body.artist.trim());
+  return json(result);
 }

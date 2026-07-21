@@ -60,6 +60,14 @@ export default function Library() {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [aiTagLoading, setAiTagLoading] = useState(false);
   const [aiTagError, setAiTagError] = useState<string | null>(null);
+  const [crossRefLoading, setCrossRefLoading] = useState(false);
+  const [crossRefResult, setCrossRefResult] = useState<{
+    spotify: { genres: string[]; tags: string[]; url: string | null } | null;
+    youtube: { genres: string[]; tags: string[]; url: string | null } | null;
+    consensus_genres: string[];
+    suggested_genres: string[];
+  } | null>(null);
+  const [crossRefError, setCrossRefError] = useState<string | null>(null);
   const [genres, setGenres] = useState<string[]>([]);
   const [keys, setKeys] = useState<string[]>([]);
   const [filters, setFilters] = useState<{ genre?: string; genres?: string[]; key?: string; bpm_min?: number; bpm_max?: number }>({});
@@ -330,6 +338,8 @@ export default function Library() {
   };
 
   const openDetail = async (track: Track) => {
+    setCrossRefResult(null);
+    setCrossRefError(null);
     try {
       const full = await api.getTrack(track.id);
       setSelectedTrack(full);
@@ -402,6 +412,26 @@ export default function Library() {
       setAiTagError(err instanceof Error ? err.message : "AI tagging failed");
     } finally {
       setAiTagLoading(false);
+    }
+  }
+
+  async function handleCrossRef() {
+    if (!selectedTrack) return;
+    if (!selectedTrack.title || !selectedTrack.artist) {
+      setCrossRefError("Track must have both title and artist for cross-referencing.");
+      return;
+    }
+
+    setCrossRefLoading(true);
+    setCrossRefError(null);
+    setCrossRefResult(null);
+    try {
+      const result = await api.crossReferenceTrack(selectedTrack.title, selectedTrack.artist);
+      setCrossRefResult(result);
+    } catch (err) {
+      setCrossRefError(err instanceof Error ? err.message : "Cross-reference failed");
+    } finally {
+      setCrossRefLoading(false);
     }
   }
 
@@ -974,6 +1004,28 @@ export default function Library() {
                 )}
               </button>
 
+              {/* Cross-Reference Button */}
+              <button
+                onClick={handleCrossRef}
+                disabled={crossRefLoading}
+                className="btn-secondary bg-gradient-to-r from-emerald-600/20 to-teal-600/20 border-emerald-700/40 hover:border-emerald-500/60 text-emerald-300"
+                title="Cross-reference track against Spotify and YouTube for genre tags"
+              >
+                {crossRefLoading ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Cross-Reference
+                  </>
+                )}
+              </button>
+
               {/* Sync buttons */}
               {selectedTrack.sync_status !== "cloud" && selectedTrack.sync_status !== "syncing" && (
                 <button
@@ -1030,6 +1082,88 @@ export default function Library() {
             </div>
             {aiTagError && (
               <p className="mt-2 text-xs text-red-400">{aiTagError}</p>
+            )}
+            {crossRefError && (
+              <p className="mt-2 text-xs text-red-400">{crossRefError}</p>
+            )}
+            {crossRefResult && (
+              <div className="mt-4 border-t border-gray-800 pt-4">
+                <h3 className="mb-3 text-sm font-semibold text-gray-300">Cross-Reference Results</h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {/* Spotify */}
+                  {crossRefResult.spotify && (
+                    <div className="rounded-lg border border-emerald-700/30 bg-emerald-900/10 p-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded bg-emerald-600/30 px-2 py-0.5 text-xs font-medium text-emerald-300">Spotify</span>
+                        {crossRefResult.spotify.found ? (
+                          <span className="text-xs text-emerald-400">Found</span>
+                        ) : (
+                          <span className="text-xs text-amber-400">Not found</span>
+                        )}
+                      </div>
+                      {crossRefResult.spotify.genres.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {crossRefResult.spotify.genres.map(g => (
+                            <span key={g} className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">{g}</span>
+                          ))}
+                        </div>
+                      )}
+                      {crossRefResult.spotify.url && (
+                        <a href={crossRefResult.spotify.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs text-emerald-400 hover:text-emerald-300">
+                          Open in Spotify ↗
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  {/* YouTube */}
+                  {crossRefResult.youtube && (
+                    <div className="rounded-lg border border-red-700/30 bg-red-900/10 p-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded bg-red-600/30 px-2 py-0.5 text-xs font-medium text-red-300">YouTube</span>
+                        {crossRefResult.youtube.found ? (
+                          <span className="text-xs text-red-400">Found</span>
+                        ) : (
+                          <span className="text-xs text-amber-400">Not found</span>
+                        )}
+                      </div>
+                      {crossRefResult.youtube.genres.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {crossRefResult.youtube.genres.map(g => (
+                            <span key={g} className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">{g}</span>
+                          ))}
+                        </div>
+                      )}
+                      {crossRefResult.youtube.url && (
+                        <a href={crossRefResult.youtube.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs text-red-400 hover:text-red-300">
+                          Open in YouTube ↗
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* Consensus genres */}
+                {crossRefResult.consensus_genres.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-violet-700/30 bg-violet-900/10 p-3">
+                    <span className="mb-2 block text-xs font-medium text-violet-300">Consensus Genres</span>
+                    <div className="flex flex-wrap gap-1">
+                      {crossRefResult.consensus_genres.map(g => (
+                        <span key={g} className="rounded bg-violet-600/30 px-2 py-0.5 text-xs text-violet-200">{g}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Suggested genres */}
+                {crossRefResult.suggested_genres.length > 0 && (
+                  <div className="mt-2 rounded-lg border border-amber-700/30 bg-amber-900/10 p-3">
+                    <span className="mb-2 block text-xs font-medium text-amber-300">Suggested to Add</span>
+                    <div className="flex flex-wrap gap-1">
+                      {crossRefResult.suggested_genres.map(g => (
+                        <span key={g} className="rounded bg-amber-600/30 px-2 py-0.5 text-xs text-amber-200">{g}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
